@@ -575,6 +575,60 @@ namespace Helios.DedicatedThreadPool
 
             return tl.workStealingQueue.LocalFindAndPop(callback);
         }
+
+        [SecurityCritical]
+        public void Dequeue(ThreadPoolWorkQueueThreadLocals tl, out IHeliosWorkItem callback, out bool missedSteal)
+        {
+            callback = null;
+            missedSteal = false;
+            WorkStealingQueue wsq = tl.workStealingQueue;
+
+            if (wsq.LocalPop(out callback))
+                Contract.Assert(null != callback);
+
+            if (null == callback)
+            {
+                QueueSegment tail = queueTail;
+                while (true)
+                {
+                    if (tail.TryDequeue(out callback))
+                    {
+                        Contract.Assert(null != callback);
+                        break;
+                    }
+
+                    if (null == tail.Next || !tail.IsUsedUp())
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Interlocked.CompareExchange(ref queueTail, tail.Next, tail);
+                        tail = queueTail;
+                    }
+                }
+            }
+
+            if (null == callback)
+            {
+                WorkStealingQueue[] otherQueues = allThreadQueues.Current;
+                int i = tl.random.Next(otherQueues.Length);
+                int c = otherQueues.Length;
+                while (c > 0)
+                {
+                    WorkStealingQueue otherQueue = Volatile.Read(ref otherQueues[i % otherQueues.Length]);
+                    if (otherQueue != null &&
+                        otherQueue != wsq &&
+                        otherQueue.TrySteal(out callback, ref missedSteal))
+                    {
+                        Contract.Assert(null != callback);
+                        break;
+                    }
+                    i++;
+                    c--;
+                }
+            }
+        }
     }
 
     internal sealed class ThreadPoolWorkQueueThreadLocals
