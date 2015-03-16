@@ -120,10 +120,28 @@ namespace Helios.Concurrency
 
                     if (workItem == null)
                     {
+#if DEBUG
+                        if (missedSteal)
+                        {
+                            DedicatedThreadPoolSource.Log.StealMiss();
+                        }
+                        DedicatedThreadPoolSource.Log.GlobalQueueMiss();
+#endif
                         tl.IncrementQueueMiss();
                     }
                     else //execute our work
                     {
+#if DEBUG
+                        if (missedSteal)
+                        {
+                            DedicatedThreadPoolSource.Log.StealMiss();
+                             DedicatedThreadPoolSource.Log.GlobalQueueHit();
+                        }
+                        else
+                        {
+                            DedicatedThreadPoolSource.Log.StealHit();
+                        }
+#endif
                         tl.ResetQueueMiss();
                         workItem.ExecuteWorkItem();
                         workItem = null;

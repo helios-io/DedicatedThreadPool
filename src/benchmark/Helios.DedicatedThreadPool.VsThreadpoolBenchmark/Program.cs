@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -13,10 +14,17 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
     {
         static void Main(string[] args)
         {
-            var workItems = 100000;
+            var workItems = 10000;
             var tpSettings = new DedicatedThreadPoolSettings(Environment.ProcessorCount);
             Console.WriteLine("Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for {0} items", workItems);
             Console.WriteLine("DedicatedThreadPool.NumThreads: {0}", tpSettings.NumThreads);
+
+#if DEBUG
+            if (DedicatedThreadPoolSource.Log.IsEnabled())
+                Console.WriteLine("ETW Logging Enabled");
+            else
+                Console.WriteLine("ETW Logging NOT Enabled");
+#endif
 
             //Console.WriteLine("System.Threading.ThreadPool");
             //Console.WriteLine(
