@@ -3,6 +3,7 @@
 //   Copyright (c) Microsoft Corporation.  All rights reserved.
 //   Original source: http://referencesource.microsoft.com/#mscorlib/system/threading/threadpool.cs
 // ==--==
+
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
@@ -10,7 +11,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Security;
 using System.Threading;
 
-namespace Helios.DedicatedThreadPool
+namespace Helios.Concurrency
 {
     internal interface IHeliosWorkItem
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Helios.DedicatedThreadPool
+namespace Helios.Concurrency
 {
     /// <summary>
     /// The type of threads to use - either foreground or background threads.
@@ -14,7 +14,7 @@ namespace Helios.DedicatedThreadPool
     /// <summary>
     /// Provides settings for a dedicated thread pool
     /// </summary>
-    public class HeliosThreadPoolSettings
+    internal class DedicatedThreadPoolSettings
     {
         /// <summary>
         /// The default number of milliseconds we'll spin to check for work again
@@ -27,11 +27,11 @@ namespace Helios.DedicatedThreadPool
         /// </summary>
         public const ThreadType DefaultThreadType = ThreadType.Background;
 
-        public HeliosThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType) { }
+        public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType) { }
 
-        public HeliosThreadPoolSettings(int numThreads, ThreadType threadType) : this(numThreads, threadType, DefaultThreadSpinWaitMilis) { }
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType) : this(numThreads, threadType, DefaultThreadSpinWaitMilis) { }
 
-        public HeliosThreadPoolSettings(int numThreads, ThreadType threadType, int threadWaitForWorkMillis)
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, int threadWaitForWorkMillis)
         {
             ThreadWaitForWorkMillis = threadWaitForWorkMillis;
             ThreadType = threadType;

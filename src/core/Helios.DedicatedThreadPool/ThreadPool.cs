@@ -3,20 +3,20 @@ using System.Diagnostics.Contracts;
 using System.Security;
 using System.Threading;
 
-namespace Helios.DedicatedThreadPool
+namespace Helios.Concurrency
 {
     /// <summary>
     /// An instanced, dedicated thread pool.
     /// </summary>
-    internal class HeliosThreadPool : IDisposable
+    internal class DedicatedThreadPool : IDisposable
     {
-        public HeliosThreadPool(HeliosThreadPoolSettings settings)
+        public DedicatedThreadPool(DedicatedThreadPoolSettings settings)
         {
             Settings = settings;
             WorkQueue = new ThreadPoolWorkQueue();
         }
 
-        public HeliosThreadPoolSettings Settings { get; private set; }
+        public DedicatedThreadPoolSettings Settings { get; private set; }
 
         public int ThreadCount { get { return Settings.NumThreads; } }
 
@@ -118,10 +118,10 @@ namespace Helios.DedicatedThreadPool
                         }
                     }
 
-                    // sleep and try again
                     if (workItem == null)
                     {
-                        Thread.Sleep(Settings.ThreadWaitForWorkMillis);
+                        //release this thread
+                        return true;
                     }
                     else //execute our work
                     {
