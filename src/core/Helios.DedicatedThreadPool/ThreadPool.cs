@@ -55,7 +55,7 @@ namespace Helios.Concurrency
                 finally
                 {
                     var heliosActionCallback = new ActionWorkItem(callback);
-                    WorkQueue.Enqueue(heliosActionCallback, true);
+                    WorkQueue.Enqueue(heliosActionCallback, false);
                     EnsureThreadRequested();
                     success = true;
                 }
@@ -86,7 +86,7 @@ namespace Helios.Concurrency
             {
                 //Set up thread-local data
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                while (!_shutdownRequested) //look for work until explicitly shut down
+                while (!_shutdownRequested && tl.ConsecutiveQueueMissCount < workQueue.QueueMissUpperLimit) //look for work until explicitly shut down or too many queue misses
                 {
                     bool missedSteal = false;
                     workQueue.Dequeue(tl, out workItem, out missedSteal);
@@ -120,11 +120,11 @@ namespace Helios.Concurrency
 
                     if (workItem == null)
                     {
-                        //release this thread
-                        return true;
+                        tl.IncrementQueueMiss();
                     }
                     else //execute our work
                     {
+                        tl.ResetQueueMiss();
                         workItem.ExecuteWorkItem();
                         workItem = null;
                     }
@@ -145,8 +145,12 @@ namespace Helios.Concurrency
 
         internal void RequestWorkerThread()
         {
-            var thread = new Thread(_ => Dispatch()) {IsBackground = ThreadType == ThreadType.Background};
-            thread.Start();
+            //don't acknowledge thread create requests when disposing or stopping
+            if (!_shutdownRequested)
+            {
+                var thread = new Thread(_ => Dispatch()) { IsBackground = ThreadType == ThreadType.Background };
+                thread.Start();
+            }
         }
 
         [SecurityCritical]

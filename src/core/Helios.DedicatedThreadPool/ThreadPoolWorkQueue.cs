@@ -44,6 +44,11 @@ namespace Helios.Concurrency
 
     internal sealed class ThreadPoolWorkQueue
     {
+        //10 misses in a row == release thread
+        public const int DefaultQueueMissUpperLimit = 10;
+
+        public readonly int QueueMissUpperLimit;
+
         // Simple sparsely populated array to allow lock-free reading.
         internal class SparseArray<T> where T : class
         {
@@ -526,8 +531,11 @@ namespace Helios.Concurrency
 
         internal SparseArray<WorkStealingQueue> allThreadQueues = new SparseArray<WorkStealingQueue>(16);
 
-        public ThreadPoolWorkQueue()
+        public ThreadPoolWorkQueue() : this(DefaultQueueMissUpperLimit) { }
+
+        public ThreadPoolWorkQueue(int queueMissUpperLimit)
         {
+            QueueMissUpperLimit = queueMissUpperLimit;
             queueTail = queueHead = new QueueSegment();
         }
 
@@ -638,6 +646,11 @@ namespace Helios.Concurrency
         [SecurityCritical]
         public static ThreadPoolWorkQueueThreadLocals threadLocals;
 
+        /// <summary>
+        /// Consecutive number of misses against the queue
+        /// </summary>
+        public int ConsecutiveQueueMissCount { get; private set; }
+
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
         public readonly Random random = new Random(Thread.CurrentThread.ManagedThreadId);
@@ -648,6 +661,16 @@ namespace Helios.Concurrency
             workQueue = tpq;
             workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
             workQueue.allThreadQueues.Add(workStealingQueue);
+        }
+
+        public void IncrementQueueMiss()
+        {
+            ConsecutiveQueueMissCount = ConsecutiveQueueMissCount + 1;
+        }
+
+        public void ResetQueueMiss()
+        {
+            ConsecutiveQueueMissCount = 0;
         }
 
         [SecurityCritical]
