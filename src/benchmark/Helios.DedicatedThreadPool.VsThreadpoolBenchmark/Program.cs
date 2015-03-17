@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Helios.Concurrency;
+using Microsoft.Diagnostics.Tracing;
 
 namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
 {
@@ -20,23 +21,24 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
             Console.WriteLine("DedicatedThreadPool.NumThreads: {0}", tpSettings.NumThreads);
 
 #if DEBUG
+            EventSource.GenerateManifest(typeof (DedicatedThreadPoolSource), DedicatedThreadPoolSource.AssemblyDirectory);
             if (DedicatedThreadPoolSource.Log.IsEnabled())
                 Console.WriteLine("ETW Logging Enabled");
             else
                 Console.WriteLine("ETW Logging NOT Enabled");
 #endif
 
-            //Console.WriteLine("System.Threading.ThreadPool");
-            //Console.WriteLine(
-            //    TimeSpan.FromMilliseconds(
-            //        Enumerable.Range(0, 6).Select(_ =>
-            //        {
-            //            var sw = Stopwatch.StartNew();
-            //            CreateAndWaitForWorkItems(workItems);
-            //            return sw.ElapsedMilliseconds;
-            //        }).Skip(1).Average()
-            //    )
-            //);
+            Console.WriteLine("System.Threading.ThreadPool");
+            Console.WriteLine(
+                TimeSpan.FromMilliseconds(
+                    Enumerable.Range(0, 6).Select(_ =>
+                    {
+                        var sw = Stopwatch.StartNew();
+                        CreateAndWaitForWorkItems(workItems);
+                        return sw.ElapsedMilliseconds;
+                    }).Skip(1).Average()
+                )
+            );
 
             Console.WriteLine("Helios.Concurrency.DedicatedThreadPool");
             Console.WriteLine(

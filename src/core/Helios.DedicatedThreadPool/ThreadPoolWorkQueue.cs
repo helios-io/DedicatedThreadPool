@@ -25,7 +25,7 @@ namespace Helios.Concurrency
     internal sealed class ActionWorkItem : IHeliosWorkItem
     {
         [System.Security.SecuritySafeCritical]
-        static ActionWorkItem() {}
+        static ActionWorkItem() { }
 
         private Action _callback;
 
@@ -84,7 +84,7 @@ namespace Helios.Concurrency
                                 if (array != m_array)
                                     continue;
 
-                                T[] newArray = new T[array.Length*2];
+                                T[] newArray = new T[array.Length * 2];
                                 Array.Copy(array, newArray, i + 1);
                                 newArray[i + 1] = e;
                                 m_array = newArray;
@@ -369,6 +369,9 @@ namespace Helios.Concurrency
                                 if (obj == null) continue;
 
                                 m_array[idx] = null;
+#if HELIOS_DEBUG
+                                DedicatedThreadPoolSource.Log.StealHit();
+#endif
                                 return true;
                             }
                             else
@@ -390,6 +393,9 @@ namespace Helios.Concurrency
                             m_foreignLock.Exit(false);
                     }
 
+#if HELIOS_DEBUG
+                    DedicatedThreadPoolSource.Log.StealMiss();
+#endif
                     return false;
                 }
             }
@@ -620,6 +626,9 @@ namespace Helios.Concurrency
 
             if (null == callback)
             {
+#if HELIOS_DEBUG
+                DedicatedThreadPoolSource.Log.LocalQueueMiss();
+#endif
                 WorkStealingQueue[] otherQueues = allThreadQueues.Current;
                 int i = tl.random.Next(otherQueues.Length);
                 int c = otherQueues.Length;
@@ -631,12 +640,27 @@ namespace Helios.Concurrency
                         otherQueue.TrySteal(out callback, ref missedSteal))
                     {
                         Contract.Assert(null != callback);
+#if HELIOS_DEBUG
+                        DedicatedThreadPoolSource.Log.StealHit();
+#endif
                         break;
                     }
                     i++;
                     c--;
                 }
+#if HELIOS_DEBUG
+                if (null == callback)
+                {
+                    DedicatedThreadPoolSource.Log.StealMiss();
+                }
+#endif
             }
+#if HELIOS_DEBUG //found work in the local queue previously
+            else
+            {
+                DedicatedThreadPoolSource.Log.LocalQueueHit();
+            }
+#endif
         }
     }
 
@@ -645,11 +669,6 @@ namespace Helios.Concurrency
         [ThreadStatic]
         [SecurityCritical]
         public static ThreadPoolWorkQueueThreadLocals threadLocals;
-
-        /// <summary>
-        /// Consecutive number of misses against the queue
-        /// </summary>
-        public int ConsecutiveQueueMissCount { get; private set; }
 
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
@@ -661,16 +680,6 @@ namespace Helios.Concurrency
             workQueue = tpq;
             workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
             workQueue.allThreadQueues.Add(workStealingQueue);
-        }
-
-        public void IncrementQueueMiss()
-        {
-            ConsecutiveQueueMissCount = ConsecutiveQueueMissCount + 1;
-        }
-
-        public void ResetQueueMiss()
-        {
-            ConsecutiveQueueMissCount = 0;
         }
 
         [SecurityCritical]

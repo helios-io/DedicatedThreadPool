@@ -55,7 +55,7 @@ namespace Helios.Concurrency
                 finally
                 {
                     var heliosActionCallback = new ActionWorkItem(callback);
-                    WorkQueue.Enqueue(heliosActionCallback, false);
+                    WorkQueue.Enqueue(heliosActionCallback, true);
                     EnsureThreadRequested();
                     success = true;
                 }
@@ -75,6 +75,12 @@ namespace Helios.Concurrency
             var workQueue = WorkQueue;
 
             //
+            // The clock is ticking!  We have ThreadPoolGlobals.tpQuantum milliseconds to get some work done, and then
+            // we need to return to the VM.
+            //
+            int quantumStartTime = Environment.TickCount;
+
+            //
             // Update our records to indicate that an outstanding request for a thread has now been fulfilled.
             // From this point on, we are responsible for requesting another thread if we stop working for any
             // reason, and we believe there might still be work in the queue.
@@ -86,7 +92,7 @@ namespace Helios.Concurrency
             {
                 //Set up thread-local data
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                while (!_shutdownRequested && tl.ConsecutiveQueueMissCount < workQueue.QueueMissUpperLimit) //look for work until explicitly shut down or too many queue misses
+                while ((Environment.TickCount - quantumStartTime) < Settings.QuantumMillis) //look for work until explicitly shut down or too many queue misses
                 {
                     bool missedSteal = false;
                     workQueue.Dequeue(tl, out workItem, out missedSteal);
@@ -120,29 +126,10 @@ namespace Helios.Concurrency
 
                     if (workItem == null)
                     {
-#if DEBUG
-                        if (missedSteal)
-                        {
-                            DedicatedThreadPoolSource.Log.StealMiss();
-                        }
-                        DedicatedThreadPoolSource.Log.GlobalQueueMiss();
-#endif
-                        tl.IncrementQueueMiss();
+                        return true;
                     }
                     else //execute our work
                     {
-#if DEBUG
-                        if (missedSteal)
-                        {
-                            DedicatedThreadPoolSource.Log.StealMiss();
-                             DedicatedThreadPoolSource.Log.GlobalQueueHit();
-                        }
-                        else
-                        {
-                            DedicatedThreadPoolSource.Log.StealHit();
-                        }
-#endif
-                        tl.ResetQueueMiss();
                         workItem.ExecuteWorkItem();
                         workItem = null;
                     }
@@ -152,7 +139,7 @@ namespace Helios.Concurrency
             finally
             {
                 //had an exception in the course of executing some work, and this thread is going to die.
-                if(needAnotherThread)
+                if (needAnotherThread)
                     EnsureThreadRequested();
             }
 
@@ -195,6 +182,10 @@ namespace Helios.Concurrency
         [SecurityCritical]
         internal void MarkThreadRequestSatisfied()
         {
+
+#if HELIOS_DEBUG
+            DedicatedThreadPoolSource.Log.ThreadStarted();
+#endif
             //
             // The VM has called us, so one of our outstanding thread requests has been satisfied.
             // Decrement the count so that future calls to EnsureThreadRequested will succeed.

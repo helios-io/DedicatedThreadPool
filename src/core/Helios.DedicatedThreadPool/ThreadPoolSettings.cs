@@ -21,10 +21,18 @@ namespace Helios.Concurrency
         /// </summary>
         public const ThreadType DefaultThreadType = ThreadType.Background;
 
-        public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType) { }
+        /// <summary>
+        /// Default number of milliseconds we use
+        /// </summary>
+        public const uint DefaultQuantumMillis = 30;
 
-        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType)
+        public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType, DefaultQuantumMillis) { }
+
+        public DedicatedThreadPoolSettings(int numThreads, uint quantum) : this(numThreads, DefaultThreadType, quantum) { }
+
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, uint quantumMillis)
         {
+            QuantumMillis = quantumMillis;
             ThreadType = threadType;
             NumThreads = numThreads;
             if(numThreads <= 0) 
@@ -40,5 +48,10 @@ namespace Helios.Concurrency
         /// The type of threads to run in this thread pool.
         /// </summary>
         public ThreadType ThreadType { get; private set; }
+
+        /// <summary>
+        /// Minimum run interval for a thread before it's released
+        /// </summary>
+        public uint QuantumMillis { get; private set; }
     }
 }

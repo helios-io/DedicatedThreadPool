@@ -1,10 +1,23 @@
-﻿using System.Diagnostics.Tracing;
+﻿using System;
 using System.Threading;
+using Microsoft.Diagnostics.Tracing;
 
 namespace Helios.Concurrency
 {
+    [EventSource(Name = "DedicatedThreadPool")]
     internal sealed class DedicatedThreadPoolSource : EventSource
     {
+        public static string AssemblyDirectory
+        {
+            get
+            {
+                var codeBase = typeof(DedicatedThreadPoolSource).Assembly.CodeBase;
+                var uri = new UriBuilder(codeBase);
+                var path = Uri.UnescapeDataString(uri.Path);
+                return path;
+            }
+        }
+
         /// <summary>
         /// Borrowed from the main Helios library in order to make it easier
         /// to run unit tests on top of the 
@@ -47,55 +60,52 @@ namespace Helios.Concurrency
 
         internal static class DebugCounters
         {
-            public const string StealName = "WorkerQueueSteal";
             public static readonly AtomicCounter StealCounter = new AtomicCounter(0);
-
-            public const string StealMissName = "WorkerQueueStealMiss";
             public static readonly AtomicCounter StealMissCounter = new AtomicCounter(0);
-
-            public const string HitName = "WorkerGlobalQueueHit";
-            public static readonly AtomicCounter HitCounter = new AtomicCounter(0);
-
-            public const string MissName = "WorkerGlobalQueueMiss";
-            public static readonly AtomicCounter MissCounter = new AtomicCounter(0);
-        }
-
-        public void Load(long imageBase, string name)
-        {
-            WriteEvent(1, imageBase, name);
+            public static readonly AtomicCounter GlobalHitCounter = new AtomicCounter(0);
+            public static readonly AtomicCounter GlobalMissCounter = new AtomicCounter(0);
+            public static readonly AtomicCounter LocalHitCounter = new AtomicCounter(0);
+            public static readonly AtomicCounter LocalMissCounter = new AtomicCounter(0);
         }
 
         public void Message(string message)
         {
-            WriteEvent(5, message);
-        }
-
-        public void HighFreq(string name, int value = 0)
-        {
-            if (IsEnabled())
-            {
-                WriteEvent(7, name, value);
-            }
+            WriteEvent(1, message);
         }
 
         public void StealHit()
         {
-            HighFreq(DebugCounters.StealName, DebugCounters.StealCounter.GetAndIncrement());
+            WriteEvent(2, DebugCounters.StealCounter.GetAndIncrement());
         }
 
         public void StealMiss()
         {
-            HighFreq(DebugCounters.StealMissName, DebugCounters.StealMissCounter.GetAndIncrement());
+            WriteEvent(3, DebugCounters.StealMissCounter.GetAndIncrement());
         }
 
         public void GlobalQueueHit()
         {
-            HighFreq(DebugCounters.HitName, DebugCounters.HitCounter.GetAndIncrement());
+            WriteEvent(4, DebugCounters.GlobalHitCounter.GetAndIncrement());
         }
 
         public void GlobalQueueMiss()
         {
-            HighFreq(DebugCounters.MissName, DebugCounters.MissCounter.GetAndIncrement());
+            WriteEvent(5, DebugCounters.GlobalMissCounter.GetAndIncrement());
+        }
+
+        public void LocalQueueHit()
+        {
+            WriteEvent(6, DebugCounters.LocalHitCounter.GetAndIncrement());
+        }
+
+        public void LocalQueueMiss()
+        {
+            WriteEvent(7, DebugCounters.LocalMissCounter.GetAndIncrement());
+        }
+
+        public void ThreadStarted()
+        {
+            WriteEvent(8);
         }
 
         public static readonly DedicatedThreadPoolSource Log = new DedicatedThreadPoolSource();
