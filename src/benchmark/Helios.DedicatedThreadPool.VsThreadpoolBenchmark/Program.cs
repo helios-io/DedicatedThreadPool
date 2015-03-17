@@ -10,34 +10,40 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
     {
         static void Main(string[] args)
         {
-            var workItems = 10000;
+            var generations = 4;
             var tpSettings = new DedicatedThreadPoolSettings(Environment.ProcessorCount);
-            Console.WriteLine("Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for {0} items", workItems);
-            Console.WriteLine("DedicatedThreadPool.NumThreads: {0}", tpSettings.NumThreads);
+            for (int i = 0; i < generations; i++)
+            {
+                var workItems = 10000 * (int)Math.Pow(10, i);
+                Console.WriteLine(
+                    "Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for {0} items",
+                    workItems);
+                Console.WriteLine("DedicatedThreadFiber.NumThreads: {0}", tpSettings.NumThreads);
 
-            Console.WriteLine("System.Threading.ThreadPool");
-            Console.WriteLine(
-                TimeSpan.FromMilliseconds(
-                    Enumerable.Range(0, 6).Select(_ =>
-                    {
-                        var sw = Stopwatch.StartNew();
-                        CreateAndWaitForWorkItems(workItems);
-                        return sw.ElapsedMilliseconds;
-                    }).Skip(1).Average()
-                )
-            );
+                Console.WriteLine("System.Threading.ThreadPool");
+                Console.WriteLine(
+                    TimeSpan.FromMilliseconds(
+                        Enumerable.Range(0, 6).Select(_ =>
+                        {
+                            var sw = Stopwatch.StartNew();
+                            CreateAndWaitForWorkItems(workItems);
+                            return sw.ElapsedMilliseconds;
+                        }).Skip(1).Average()
+                        )
+                    );
 
-            Console.WriteLine("Helios.Concurrency.DedicatedThreadPool");
-            Console.WriteLine(
-                TimeSpan.FromMilliseconds(
-                    Enumerable.Range(0, 6).Select(_ =>
-                    {
-                        var sw = Stopwatch.StartNew();
-                        CreateAndWaitForWorkItems(workItems, tpSettings);
-                        return sw.ElapsedMilliseconds;
-                    }).Skip(1).Average()
-                )
-            );
+                Console.WriteLine("Helios.Concurrency.DedicatedThreadPool");
+                Console.WriteLine(
+                    TimeSpan.FromMilliseconds(
+                        Enumerable.Range(0, 6).Select(_ =>
+                        {
+                            var sw = Stopwatch.StartNew();
+                            CreateAndWaitForWorkItems(workItems, tpSettings);
+                            return sw.ElapsedMilliseconds;
+                        }).Skip(1).Average()
+                        )
+                    );
+            }
         }
 
         static void CreateAndWaitForWorkItems(int numWorkItems)

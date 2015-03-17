@@ -18,7 +18,7 @@ namespace Helios.Concurrency.Tests
             {
                 for (var i = 0; i < 1000; i++)
                 {
-                    threadPool.QueueUserWorkItem(o => atomicCounter.GetAndIncrement());
+                    threadPool.QueueUserWorkItem(() => atomicCounter.GetAndIncrement());
                 }
                 SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
             }
@@ -31,7 +31,7 @@ namespace Helios.Concurrency.Tests
             var numThreads = 3;
             var threadIds = new ConcurrentBag<int>();
             var atomicCounter = new AtomicCounter(0);
-            WaitCallback callback = o =>
+            Action callback = () =>
             {
                 atomicCounter.GetAndIncrement();
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
@@ -49,47 +49,17 @@ namespace Helios.Concurrency.Tests
             Assert.AreEqual(numThreads, threadIds.Distinct().Count());
         }
 
-        [Test(Description = "No sleeping threads - should release them in the event that there's no work.")]
-        public void Should_release_threads_when_idle()
-        {
-            var numThreads = 3;
-            var threadIds = new ConcurrentBag<int>();
-            WaitCallback callback = o =>
-            {
-                Thread.Sleep(15); //sleep, so another thread is forced to take the work
-                threadIds.Add(Thread.CurrentThread.ManagedThreadId);
-            };
-            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads)))
-            {
-                for (var i = 0; i < numThreads; i++)
-                {
-                    threadPool.QueueUserWorkItem(callback);
-                }
-                //wait a second for all work to be completed
-                Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
-
-                //run the job again. Should get 3 more managed thread IDs
-                for (var i = 0; i < numThreads; i++)
-                {
-                    threadPool.QueueUserWorkItem(callback);
-                }
-                Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
-            }
-
-            Assert.AreEqual(numThreads*2, threadIds.Distinct().Count());
-        }
-
         [Test(Description = "Have a user-defined method that throws an exception? The world should not end.")]
         public void World_should_not_end_if_exception_thrown_in_user_callback()
         {
             var numThreads = 3;
             var threadIds = new ConcurrentBag<int>();
-            WaitCallback badCallback = o =>
+            Action badCallback = () =>
             {
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
                 throw new Exception("DEATH TO THIS THREAD I SAY!");
             };
-            WaitCallback goodCallback = o =>
+            Action goodCallback = () =>
             {
                 Thread.Sleep(20);
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);

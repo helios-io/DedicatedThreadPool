@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AtomicCounter.cs" />
+    <Compile Include="DedicatedThreadPoolTaskSchedulerTests.cs" />
     <Compile Include="DedicatedThreadPoolTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

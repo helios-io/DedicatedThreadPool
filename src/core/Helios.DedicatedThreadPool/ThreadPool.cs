@@ -1,212 +1,271 @@
-﻿using System;
-using System.Diagnostics.Contracts;
-using System.Security;
+﻿/*
+ * Copyright 2015 Roger Alsing, Aaron Stannard
+ * Helios.DedicatedThreadPool - https://github.com/helios-io/DedicatedThreadPool
+ */
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Helios.Concurrency
 {
+    /// <summary>
+    /// The type of threads to use - either foreground or background threads.
+    /// </summary>
+    internal enum ThreadType
+    {
+        Foreground,
+        Background
+    }
+
+    /// <summary>
+    /// Provides settings for a dedicated thread pool
+    /// </summary>
+    internal class DedicatedThreadPoolSettings
+    {
+        /// <summary>
+        /// Background threads are the default thread type
+        /// </summary>
+        public const ThreadType DefaultThreadType = ThreadType.Background;
+
+        public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType) { }
+
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType)
+        {
+            ThreadType = threadType;
+            NumThreads = numThreads;
+            if (numThreads <= 0)
+                throw new ArgumentOutOfRangeException("numThreads", string.Format("numThreads must be at least 1. Was {0}", numThreads));
+        }
+
+        /// <summary>
+        /// The total number of threads to run in this thread pool.
+        /// </summary>
+        public int NumThreads { get; private set; }
+
+        /// <summary>
+        /// The type of threads to run in this thread pool.
+        /// </summary>
+        public ThreadType ThreadType { get; private set; }
+    }
+
+    /// <summary>
+    /// TaskScheduler for working with a <see cref="DedicatedThreadPool"/> instance
+    /// </summary>
+    internal class DedicatedThreadPoolTaskScheduler : TaskScheduler
+    {
+        // Indicates whether the current thread is processing work items.
+        [ThreadStatic]
+        private static bool _currentThreadIsRunningTasks;
+
+        /// <summary>
+        /// Number of tasks currently running
+        /// </summary>
+        private volatile int _parallelWorkers = 0;
+ 
+        private readonly LinkedList<Task> _tasks = new LinkedList<Task>();
+
+        private readonly DedicatedThreadPool _pool;
+
+        public DedicatedThreadPoolTaskScheduler(DedicatedThreadPool pool)
+        {
+            _pool = pool;
+        }
+
+        protected override void QueueTask(Task task)
+        {
+            lock (_tasks)
+            {
+                _tasks.AddLast(task);
+            }
+
+            EnsureWorkerRequested();
+        }
+
+        protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+        {
+            //current thread isn't running any tasks, can't execute inline
+            if (!_currentThreadIsRunningTasks) return false;
+
+            //remove the task from the queue if it was previously added
+            if(taskWasPreviouslyQueued)
+                if (TryDequeue(task))
+                    return TryExecuteTask(task);
+                else
+                    return false;
+            return TryExecuteTask(task);
+        }
+
+        protected override bool TryDequeue(Task task)
+        {
+            lock (_tasks) return _tasks.Remove(task);
+        }
+
+        /// <summary>
+        /// Level of concurrency is directly equal to the number of threads
+        /// in the <see cref="DedicatedThreadPool"/>.
+        /// </summary>
+        public override int MaximumConcurrencyLevel
+        {
+            get { return _pool.Settings.NumThreads; }
+        }
+
+        protected override IEnumerable<Task> GetScheduledTasks()
+        {
+            var lockTaken = false;
+            try
+            {
+                Monitor.TryEnter(_tasks, ref lockTaken);
+
+                //should this be immutable?
+                if (lockTaken) return _tasks;
+                else throw new NotSupportedException();
+            }
+            finally
+            {
+                if (lockTaken) Monitor.Exit(_tasks);
+            }
+        }
+
+        private void EnsureWorkerRequested()
+        {
+            var count = _parallelWorkers;
+            while (count < _pool.Settings.NumThreads)
+            {
+                var prev = Interlocked.CompareExchange(ref _parallelWorkers, count + 1, count);
+                if (prev == count)
+                {
+                    RequestWorker();
+                    break;
+                }
+                count = prev;
+            }
+        }
+
+        private void ReleaseWorker()
+        {
+            var count = _parallelWorkers;
+            while (count > 0)
+            {
+                var prev = Interlocked.CompareExchange(ref _parallelWorkers, count - 1, count);
+                if (prev == count)
+                {
+                    break;
+                }
+                count = prev;
+            }
+        }
+
+        private void RequestWorker()
+        {
+            _pool.QueueUserWorkItem(() =>
+            {
+                // this thread is now available for inlining
+                _currentThreadIsRunningTasks = true;
+                try
+                {
+                    // Process all available items in the queue. 
+                    while (true)
+                    {
+                        Task item;
+                        lock (_tasks)
+                        {
+                            // done processing
+                            if (_tasks.Count == 0)
+                            {
+                                ReleaseWorker();
+                                break;
+                            }
+
+                            // Get the next item from the queue
+                            item = _tasks.First.Value;
+                            _tasks.RemoveFirst();
+                        }
+
+                        // Execute the task we pulled out of the queue 
+                        TryExecuteTask(item);
+                    }
+                }
+                // We're done processing items on the current thread 
+                finally { _currentThreadIsRunningTasks = false; }
+            });
+        }
+    }
+
     /// <summary>
     /// An instanced, dedicated thread pool.
     /// </summary>
     internal class DedicatedThreadPool : IDisposable
     {
+       
         public DedicatedThreadPool(DedicatedThreadPoolSettings settings)
         {
             Settings = settings;
-            WorkQueue = new ThreadPoolWorkQueue();
+            Workers = Enumerable.Repeat(new WorkerQueue(), settings.NumThreads).ToArray();
+            foreach (var worker in Workers)
+            {
+                new PoolWorker(worker, this);
+            }
         }
 
-        public DedicatedThreadPoolSettings Settings { get; private set; }
+        public DedicatedThreadPoolSettings Settings { get; private set; }        
 
-        public int ThreadCount { get { return Settings.NumThreads; } }
+        internal volatile bool ShutdownRequested;
 
-        public ThreadType ThreadType { get { return Settings.ThreadType; } }
+        public readonly WorkerQueue[] Workers;
+
+        [ThreadStatic]
+        internal static PoolWorker CurrentWorker;
 
         /// <summary>
-        /// The global work queue, shared by all threads.
-        /// 
-        /// Each local thread has its own work-stealing local queue.
+        /// index for round-robin load-balancing across worker threads
         /// </summary>
-        public ThreadPoolWorkQueue WorkQueue { get; private set; }
+        private volatile int _index = 0;
 
         public bool WasDisposed { get; private set; }
 
-        private volatile bool _shutdownRequested;
-
         private void Shutdown()
         {
-            _shutdownRequested = true;
+            ShutdownRequested = true;
         }
 
-        private volatile int numOutstandingThreadRequests = 0;
-
-        public bool QueueUserWorkItem(WaitCallback work)
+        private void RequestThread(WorkerQueue unclaimedQueue)
         {
-            return QueueUserWorkItem(work, null);
+            var worker = new PoolWorker(unclaimedQueue, this);
         }
 
-        public bool QueueUserWorkItem(WaitCallback work, object obj)
+        public bool QueueUserWorkItem(Action work)
         {
             bool success = true;
+
+            //don't queue work if we've been disposed
+            if (WasDisposed) return false;
+
             if (work != null)
             {
-                //
-                // If we are able to create the workitem, we need to get it in the queue without being interrupted
-                // by a ThreadAbortException.
-                //
-                try
-                {
-                }
-                finally
-                {
-                    var heliosActionCallback = new ActionWorkItem(work, obj);
-                    WorkQueue.Enqueue(heliosActionCallback, false);
-                    EnsureThreadRequested();
-                    success = true;
-                }
+                //no local queue, write to a round-robin queue
+                //if (null == CurrentWorker)
+                //{
+                    //using volatile instead of interlocked, no need to be exact, gaining 20% perf
+                    unchecked
+                    {
+                        _index = (_index + 1);
+                        Workers[_index & 0x7fffffff  % Settings.NumThreads].AddWork(work);
+                    }
+                //}
+                //else //recursive task queue, write directly
+                //{
+                //    // send work directly to PoolWorker
+                //    // CurrentWorker.AddWork(work);
+                //}
             }
             else
             {
-                throw new ArgumentNullException("callback");
+                throw new ArgumentNullException("work");
             }
             return success;
-        }
-
-        /// <summary>
-        /// Method run internally by each worker thread
-        /// </summary>
-        private bool Dispatch()
-        {
-            var workQueue = WorkQueue;
-
-            //
-            // The clock is ticking!  We have ThreadPoolGlobals.tpQuantum milliseconds to get some work done, and then
-            // we need to return to the VM.
-            //
-            int quantumStartTime = Environment.TickCount;
-
-            //
-            // Update our records to indicate that an outstanding request for a thread has now been fulfilled.
-            // From this point on, we are responsible for requesting another thread if we stop working for any
-            // reason, and we believe there might still be work in the queue.
-            MarkThreadRequestSatisfied();
-
-            bool needAnotherThread = true;
-            IHeliosWorkItem workItem = null;
-            try
-            {
-                //Set up thread-local data
-                ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                while (!_shutdownRequested && (Environment.TickCount - quantumStartTime) < Settings.QuantumMillis) //look for work until explicitly shut down or too many queue misses
-                {
-                    bool missedSteal = false;
-                    workQueue.Dequeue(tl, out workItem, out missedSteal);
-
-                    try
-                    {
-                    }
-                    finally
-                    {
-                        if (workItem == null)
-                        {
-                            //
-                            // No work.  We're going to return to the VM once we leave this protected region.
-                            // If we missed a steal, though, there may be more work in the queue.
-                            // Instead of looping around and trying again, we'll just request another thread.  This way
-                            // we won't starve other AppDomains while we spin trying to get locks, and hopefully the thread
-                            // that owns the contended work-stealing queue will pick up its own workitems in the meantime, 
-                            // which will be more efficient than this thread doing it anyway.
-                            //
-                            needAnotherThread = missedSteal;
-                        }
-                        else
-                        {
-                            //
-                            // If we found work, there may be more work.  Ask for another thread so that the other work can be processed
-                            // in parallel.  Note that this will only ask for a max of #procs threads, so it's safe to call it for every dequeue.
-                            //
-                            EnsureThreadRequested();
-                        }
-                    }
-
-                    if (workItem == null)
-                    {
-                        return true;
-                    }
-                    else //execute our work
-                    {
-                        workItem.ExecuteWorkItem();
-                        workItem = null;
-                    }
-                }
-                return true;
-            }
-            finally
-            {
-                //had an exception in the course of executing some work, and this thread is going to die.
-                if (needAnotherThread)
-                    EnsureThreadRequested();
-            }
-
-            //should never hit this code, unless something catastrophically bad happened (like an aborted thread)
-            Contract.Assert(false);
-            return true;
-        }
-
-        internal void RequestWorkerThread()
-        {
-            //don't acknowledge thread create requests when disposing or stopping
-            if (!_shutdownRequested)
-            {
-                var thread = new Thread(_ => Dispatch()) { IsBackground = ThreadType == ThreadType.Background };
-                thread.Start();
-            }
-        }
-
-        [SecurityCritical]
-        internal void EnsureThreadRequested()
-        {
-            //
-            // If we have not yet requested #procs threads from the VM, then request a new thread.
-            // Note that there is a separate count in the VM which will also be incremented in this case, 
-            // which is handled by RequestWorkerThread.
-            //
-            int count = numOutstandingThreadRequests;
-            while (count < ThreadCount)
-            {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
-                if (prev == count)
-                {
-                    RequestWorkerThread();
-                    break;
-                }
-                count = prev;
-            }
-        }
-
-        [SecurityCritical]
-        internal void MarkThreadRequestSatisfied()
-        {
-
-#if HELIOS_DEBUG
-            DedicatedThreadPoolSource.Log.ThreadStarted();
-#endif
-            //
-            // The VM has called us, so one of our outstanding thread requests has been satisfied.
-            // Decrement the count so that future calls to EnsureThreadRequested will succeed.
-            // Note that there is a separate count in the VM which has already been decremented by the VM
-            // by the time we reach this point.
-            //
-            int count = numOutstandingThreadRequests;
-            while (count > 0)
-            {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
-                if (prev == count)
-                {
-                    break;
-                }
-                count = prev;
-            }
         }
 
         #region IDisposable members
@@ -228,6 +287,83 @@ namespace Helios.Concurrency
             }
 
             WasDisposed = true;
+        }
+
+        #endregion
+
+        #region Pool worker implementation
+
+        internal sealed class WorkerQueue
+        {
+            internal ConcurrentQueue<Action> WorkQueue = new ConcurrentQueue<Action>();
+            internal readonly ManualResetEventSlim Event = new ManualResetEventSlim(false);
+
+            public void AddWork(Action work)
+            {
+                WorkQueue.Enqueue(work);
+                Event.Set();
+            }
+        }
+
+        internal class PoolWorker
+        {
+            private WorkerQueue _work;
+            private DedicatedThreadPool _pool;
+
+            private ManualResetEventSlim _event;
+            private ConcurrentQueue<Action> _workQueue;
+
+            public PoolWorker(WorkerQueue work, DedicatedThreadPool pool)
+            {
+                _work = work;
+                _pool = pool;
+                _event = _work.Event;
+                _workQueue = _work.WorkQueue;
+
+                var thread = new Thread(() =>
+                {
+                    CurrentWorker = this;
+                    
+                    
+                    while (!_pool.ShutdownRequested)
+                    {
+                        //suspend if no more work is present
+                        _event.Wait();
+                        
+                        Action action;
+                        while (_workQueue.TryDequeue(out action))
+                        {
+                            try
+                            {
+                                action();
+                            }
+                            catch (Exception ex)
+                            {
+                                /* request a new thread then shut down */
+                                _pool.RequestThread(_work);
+                                CurrentWorker = null;
+                                _work = null;
+                                _event = null;
+                                _workQueue = null;
+                                _pool = null;
+                                throw;
+                            }
+                        }
+                        if (_workQueue.Count == 0)
+                        {
+                            _event.Reset();
+                        }
+                        if (_workQueue.Count > 0)
+                        {
+                            _event.Set();
+                        }
+                    }
+                })
+                {
+                    IsBackground = _pool.Settings.ThreadType == ThreadType.Background
+                };
+                thread.Start();
+            }
         }
 
         #endregion
