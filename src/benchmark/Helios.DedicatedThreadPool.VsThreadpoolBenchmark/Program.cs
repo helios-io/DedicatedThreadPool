@@ -78,7 +78,7 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
                 int itemsRemaining = numWorkItems;
                 for (int i = 0; i < numWorkItems; i++)
                 {
-                    tp.EnqueueWorkItem(delegate
+                    tp.QueueUserWorkItem(delegate
                     {
                         if (Interlocked.Decrement(
                             ref itemsRemaining) == 0) mre.Set();

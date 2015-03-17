@@ -18,7 +18,7 @@ namespace Helios.Concurrency.Tests
             {
                 for (var i = 0; i < 1000; i++)
                 {
-                    threadPool.EnqueueWorkItem(() => atomicCounter.GetAndIncrement());
+                    threadPool.QueueUserWorkItem(o => atomicCounter.GetAndIncrement());
                 }
                 SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
             }
@@ -31,7 +31,7 @@ namespace Helios.Concurrency.Tests
             var numThreads = 3;
             var threadIds = new ConcurrentBag<int>();
             var atomicCounter = new AtomicCounter(0);
-            Action callback = () =>
+            WaitCallback callback = o =>
             {
                 atomicCounter.GetAndIncrement();
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
@@ -40,7 +40,7 @@ namespace Helios.Concurrency.Tests
             {
                 for (var i = 0; i < numThreads; i++)
                 {
-                    threadPool.EnqueueWorkItem(callback);
+                    threadPool.QueueUserWorkItem(callback);
                 }
                 //spin until work is completed
                 SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
@@ -54,7 +54,7 @@ namespace Helios.Concurrency.Tests
         {
             var numThreads = 3;
             var threadIds = new ConcurrentBag<int>();
-            Action callback = () =>
+            WaitCallback callback = o =>
             {
                 Thread.Sleep(15); //sleep, so another thread is forced to take the work
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
@@ -63,7 +63,7 @@ namespace Helios.Concurrency.Tests
             {
                 for (var i = 0; i < numThreads; i++)
                 {
-                    threadPool.EnqueueWorkItem(callback);
+                    threadPool.QueueUserWorkItem(callback);
                 }
                 //wait a second for all work to be completed
                 Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
@@ -71,7 +71,7 @@ namespace Helios.Concurrency.Tests
                 //run the job again. Should get 3 more managed thread IDs
                 for (var i = 0; i < numThreads; i++)
                 {
-                    threadPool.EnqueueWorkItem(callback);
+                    threadPool.QueueUserWorkItem(callback);
                 }
                 Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
             }
@@ -84,12 +84,12 @@ namespace Helios.Concurrency.Tests
         {
             var numThreads = 3;
             var threadIds = new ConcurrentBag<int>();
-            Action badCallback = () =>
+            WaitCallback badCallback = o =>
             {
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
                 throw new Exception("DEATH TO THIS THREAD I SAY!");
             };
-            Action goodCallback = () =>
+            WaitCallback goodCallback = o =>
             {
                 Thread.Sleep(20);
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
@@ -99,7 +99,7 @@ namespace Helios.Concurrency.Tests
             {
                 for (var i = 0; i < numThreads; i++)
                 {
-                    threadPool.EnqueueWorkItem(badCallback);
+                    threadPool.QueueUserWorkItem(badCallback);
                 }
                 //wait a second for all work to be completed
                 Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
@@ -107,7 +107,7 @@ namespace Helios.Concurrency.Tests
                 //run the job again. Should get 3 more managed thread IDs
                 for (var i = 0; i < numThreads; i++)
                 {
-                    threadPool.EnqueueWorkItem(goodCallback);
+                    threadPool.QueueUserWorkItem(goodCallback);
                 }
                 Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
             }

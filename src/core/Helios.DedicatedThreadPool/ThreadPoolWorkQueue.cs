@@ -27,18 +27,40 @@ namespace Helios.Concurrency
         [System.Security.SecuritySafeCritical]
         static ActionWorkItem() { }
 
-        private Action _callback;
+        private WaitCallback _callback;
+        private object _mState;
+        private ExecutionContext _mContext;
 
-        internal ActionWorkItem(Action callback)
+        internal ActionWorkItem(WaitCallback callback, object mState)
         {
             _callback = callback;
+            _mState = mState;
+            if (!ExecutionContext.IsFlowSuppressed())
+            {
+                //clone the execution context
+                _mContext = ExecutionContext.Capture();
+            }
         }
 
         void IHeliosWorkItem.ExecuteWorkItem()
         {
-            var action = _callback;
+           
+            if (null == _mContext)
+            {
+                var action = _callback;
+                _callback = null;
+                action(_mState);
+            }
+            else
+            {
+                ExecutionContext.Run(_mContext, ContextInvoke, _mState);
+            }
             _callback = null;
-            action();
+        }
+
+        private void ContextInvoke(object obj)
+        {
+            _callback(_mState);
         }
     }
 

@@ -40,10 +40,15 @@ namespace Helios.Concurrency
 
         private volatile int numOutstandingThreadRequests = 0;
 
-        public bool EnqueueWorkItem(Action callback)
+        public bool QueueUserWorkItem(WaitCallback work)
+        {
+            return QueueUserWorkItem(work, null);
+        }
+
+        public bool QueueUserWorkItem(WaitCallback work, object obj)
         {
             bool success = true;
-            if (callback != null)
+            if (work != null)
             {
                 //
                 // If we are able to create the workitem, we need to get it in the queue without being interrupted
@@ -54,7 +59,7 @@ namespace Helios.Concurrency
                 }
                 finally
                 {
-                    var heliosActionCallback = new ActionWorkItem(callback);
+                    var heliosActionCallback = new ActionWorkItem(work, obj);
                     WorkQueue.Enqueue(heliosActionCallback, true);
                     EnsureThreadRequested();
                     success = true;
