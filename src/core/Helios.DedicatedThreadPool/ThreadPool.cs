@@ -60,7 +60,7 @@ namespace Helios.Concurrency
                 finally
                 {
                     var heliosActionCallback = new ActionWorkItem(work, obj);
-                    WorkQueue.Enqueue(heliosActionCallback, true);
+                    WorkQueue.Enqueue(heliosActionCallback, false);
                     EnsureThreadRequested();
                     success = true;
                 }
