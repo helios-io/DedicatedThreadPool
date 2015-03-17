@@ -16,7 +16,7 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
             {
                 var workItems = 10000 * (int)Math.Pow(10, i);
                 Console.WriteLine(
-                    "Comparing Helios.Concurrency.DedicatedThreadPool vs Helios.Concurrency.DedicatedThreadFiber for {0} items",
+                    "Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for {0} items",
                     workItems);
                 Console.WriteLine("DedicatedThreadFiber.NumThreads: {0}", tpSettings.NumThreads);
 
@@ -32,7 +32,7 @@ namespace Helios.DedicatedThreadPool.VsThreadpoolBenchmark
                         )
                     );
 
-                Console.WriteLine("Helios.Concurrency.DedicatedThreadFiber");
+                Console.WriteLine("Helios.Concurrency.DedicatedThreadPool");
                 Console.WriteLine(
                     TimeSpan.FromMilliseconds(
                         Enumerable.Range(0, 6).Select(_ =>

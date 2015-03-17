@@ -17,8 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmark", "benchmark", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{E86B275F-E912-47C5-8F5E-BA62D5959EBD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.VsDedicatedThreadFiber", "benchmark\Helios.DedicatedThreadPool.VsDedicatedThreadFiber\Helios.DedicatedThreadPool.VsDedicatedThreadFiber.csproj", "{4A8C1568-7FA1-469D-A2C7-A29BF0290765}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -37,10 +35,6 @@ Global
 		{3636FEFB-5631-4D26-9923-9754267AF325}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3636FEFB-5631-4D26-9923-9754267AF325}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3636FEFB-5631-4D26-9923-9754267AF325}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4A8C1568-7FA1-469D-A2C7-A29BF0290765}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4A8C1568-7FA1-469D-A2C7-A29BF0290765}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4A8C1568-7FA1-469D-A2C7-A29BF0290765}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4A8C1568-7FA1-469D-A2C7-A29BF0290765}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -49,7 +43,6 @@ Global
 		{6C8F359E-E479-44D5-8FA0-02BFD38C3860} = {E86B275F-E912-47C5-8F5E-BA62D5959EBD}
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 		{3636FEFB-5631-4D26-9923-9754267AF325} = {E9ADEF95-5656-4CD6-B3EA-E9DE7F0DED85}
-		{4A8C1568-7FA1-469D-A2C7-A29BF0290765} = {E9ADEF95-5656-4CD6-B3EA-E9DE7F0DED85}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
