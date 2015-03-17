@@ -1,4 +1,8 @@
-﻿using System;
+﻿/*
+ * Copyright 2015 Roger Alsing, Aaron Stannard
+ * Helios.DedicatedThreadPool - https://github.com/helios-io/DedicatedThreadPool
+ */
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -213,7 +217,7 @@ namespace Helios.Concurrency
         public readonly WorkerQueue[] Workers;
 
         [ThreadStatic]
-        public static PoolWorker CurrentWorker;
+        internal static PoolWorker CurrentWorker;
 
         /// <summary>
         /// index for round-robin load-balancing across worker threads
@@ -301,7 +305,7 @@ namespace Helios.Concurrency
             }
         }
 
-        public class PoolWorker
+        internal class PoolWorker
         {
             private WorkerQueue _work;
             private DedicatedThreadPool _pool;
