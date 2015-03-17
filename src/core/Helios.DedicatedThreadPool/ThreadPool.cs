@@ -97,7 +97,7 @@ namespace Helios.Concurrency
             {
                 //Set up thread-local data
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                while ((Environment.TickCount - quantumStartTime) < Settings.QuantumMillis) //look for work until explicitly shut down or too many queue misses
+                while (!_shutdownRequested && (Environment.TickCount - quantumStartTime) < Settings.QuantumMillis) //look for work until explicitly shut down or too many queue misses
                 {
                     bool missedSteal = false;
                     workQueue.Dequeue(tl, out workItem, out missedSteal);
