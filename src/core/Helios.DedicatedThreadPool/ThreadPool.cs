@@ -119,16 +119,21 @@ namespace Helios.Concurrency
             private WorkerQueue _work;
             private DedicatedThreadPool _pool;
 
+            private ManualResetEventSlim _event;
+            private ConcurrentQueue<Action> _workQueue;
+
             public PoolWorker(WorkerQueue work, DedicatedThreadPool pool)
             {
                 _work = work;
                 _pool = pool;
+                _event = _work.Event;
+                _workQueue = _work.WorkQueue;
+
                 var thread = new Thread(() =>
                 {
                     CurrentWorker = this;
                     
-                    var _event = _work.Event;
-                    var _workQueue = _work.WorkQueue;
+                    
                     while (!_pool.ShutdownRequested)
                     {
                         //suspend if no more work is present
@@ -144,8 +149,12 @@ namespace Helios.Concurrency
                             catch (Exception ex)
                             {
                                 /* request a new thread then shut down */
-                                _pool.RequestThread(work);
+                                _pool.RequestThread(_work);
                                 CurrentWorker = null;
+                                _work = null;
+                                _event = null;
+                                _workQueue = null;
+                                _pool = null;
                                 throw;
                             }
                         }
