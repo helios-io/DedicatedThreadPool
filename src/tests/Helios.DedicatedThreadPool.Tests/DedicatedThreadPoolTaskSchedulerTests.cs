@@ -64,7 +64,7 @@ namespace Helios.Concurrency.Tests
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
             };
 
-            for (var i = 0; i < Pool.Settings.NumThreads; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 Factory.StartNew(callback);
             }
