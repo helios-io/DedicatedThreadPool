@@ -41,7 +41,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ThreadPool.cs" />
+    <Compile Include="Helios.Concurrency.DedicatedThreadPool.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Helios.DedicatedThreadPool.nuspec" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
