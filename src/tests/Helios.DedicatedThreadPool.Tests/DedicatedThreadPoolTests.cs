@@ -38,7 +38,7 @@ namespace Helios.Concurrency.Tests
             };
             using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads)))
             {
-                for (var i = 0; i < numThreads; i++)
+                for (var i = 0; i < 1000; i++)
                 {
                     threadPool.QueueUserWorkItem(callback);
                 }
