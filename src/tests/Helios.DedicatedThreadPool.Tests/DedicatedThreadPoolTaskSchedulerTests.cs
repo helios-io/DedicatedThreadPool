@@ -17,7 +17,7 @@ namespace Helios.Concurrency.Tests
         [SetUp]
         public void SetUp()
         {
-            Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(3));
+            Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
             Scheduler = new DedicatedThreadPoolTaskScheduler(Pool);
             Factory = new TaskFactory(Scheduler);
         }
