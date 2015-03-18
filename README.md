@@ -1,6 +1,16 @@
 # DedicatedThreadPool
 An instanced, dedicated thread pool for eliminating "noisy neighbor" problems on the CLR `ThreadPool`.
 
+## Installation
+
+You can install `DedicatedThreadPool` via NuGet!
+
+```
+PS> Install-package Helios.DedicatedThreadPool
+```
+
+This package doesn't install any binaries, just the following C# file: `Helios.Concurrency.DedicatedThreadPool.cs` - which contains the `DedicatedThreadPool`, `DedicatedThreadPoolTaskScheduler`, and `DedicatedThreadPoolSettings` classes.
+
 ## API
 
 You can create a `Helios.Concurrency.DedicatedThreadPool` instance via the following API:
@@ -30,3 +40,11 @@ var Factory = new TaskFactory(Scheduler);
 
 task.Wait();
 ```
+
+> NOTE: `DedicatedThreadPool` is marked as `internal` by default, so it can be used opaquely across many dependent projects.
+
+## License
+
+See [LICENSE](LICENSE) for details.
+
+Copyright (C) 2015 Roger Alsing, Aaron Stannard
