@@ -17,7 +17,7 @@ namespace Helios.Concurrency.Tests
         [SetUp]
         public void SetUp()
         {
-            Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(3));
+            Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
             Scheduler = new DedicatedThreadPoolTaskScheduler(Pool);
             Factory = new TaskFactory(Scheduler);
         }
@@ -29,6 +29,7 @@ namespace Helios.Concurrency.Tests
         }
 
         [Test(Description = "Shouldn't immediately try to schedule all threads for task execution")]
+        [Ignore("Totally unpredictable on low powered machines")]
         public void Should_only_use_one_thread_for_single_task_request()
         {
             var allThreadIds = new ConcurrentBag<int>();

@@ -28,7 +28,7 @@ namespace Helios.Concurrency.Tests
         [Test(Description = "Ensure that the number of threads running in the pool concurrently equal exactly the DedicatedThreadPoolSettings.NumThreads property")]
         public void Should_process_workload_across_exactly_DedicatedThreadPoolSettings_NumThreads()
         {
-            var numThreads = 3;
+            var numThreads = Environment.ProcessorCount;
             var threadIds = new ConcurrentBag<int>();
             var atomicCounter = new AtomicCounter(0);
             Action callback = () =>
@@ -38,7 +38,7 @@ namespace Helios.Concurrency.Tests
             };
             using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads)))
             {
-                for (var i = 0; i < numThreads; i++)
+                for (var i = 0; i < 1000; i++)
                 {
                     threadPool.QueueUserWorkItem(callback);
                 }
