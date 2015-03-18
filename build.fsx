@@ -77,7 +77,7 @@ Target "RunTests" <| fun _ ->
     nunitAssemblies |> NUnit(fun p -> 
         {p with 
             DisableShadowCopy = true;
-            OutputFile = testOutput + "TestResults.xml" })
+            OutputFile = testOutput @@ "TestResults.xml" })
 
 //--------------------------------------------------------------------------------
 // Clean test output
