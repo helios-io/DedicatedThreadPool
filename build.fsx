@@ -80,6 +80,18 @@ Target "RunTests" <| fun _ ->
             OutputFile = testOutput @@ "TestResults.xml" })
 
 //--------------------------------------------------------------------------------
+// Benchmark targets
+//--------------------------------------------------------------------------------
+Target "Benchmarks" <| fun _ ->
+    let benchmarkPath = findToolInSubPath "Helios.DedicatedThreadPool.VsThreadpoolBenchmark.exe" "bin/benchmark/**/bin/Release/*"
+   
+    let result =  ExecProcess(fun info ->
+            info.FileName <- benchmarkPath) (System.TimeSpan.FromMinutes 10.0) (* This is a long-running task *)
+    if result <> 0 then failwithf "Benchmark failed. %s" benchmarkPath
+    
+        
+
+//--------------------------------------------------------------------------------
 // Clean test output
 
 Target "CleanTests" <| fun _ ->
@@ -285,6 +297,7 @@ Target "All" DoNothing
 
 "BuildRelease" ==> "All"
 "RunTests" ==> "All"
+"Benchmarks" ==> "All"
 "Nuget" ==> "All"
 
 RunTargetOrDefault "Help"
