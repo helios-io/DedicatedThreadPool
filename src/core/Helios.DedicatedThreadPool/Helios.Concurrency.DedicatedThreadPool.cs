@@ -349,11 +349,11 @@ namespace Helios.Concurrency
                                 throw;
                             }
                         }
-                        if (_workQueue.Count == 0)
+                        if (_workQueue.IsEmpty)
                         {
                             _event.Reset();
                         }
-                        if (_workQueue.Count > 0)
+                        if (_workQueue.IsEmpty)
                         {
                             _event.Set();
                         }
