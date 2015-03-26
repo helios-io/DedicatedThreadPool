@@ -225,6 +225,9 @@ namespace Helios.Concurrency
 
                 _timer = new Timer(_ =>
                 {
+                    //bail in the event of a shutdown
+                    if (pool.ShutdownRequested) return;
+
                     foreach (var worker in pool.Workers)
                     {
                         var w = worker;
