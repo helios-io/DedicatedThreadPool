@@ -61,25 +61,26 @@ namespace Helios.Concurrency.Tests
             };
             Action goodCallback = () =>
             {
-                Thread.Sleep(20);
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
             };
 
-            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads)))
+            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, TimeSpan.FromSeconds(1))))
             {
                 for (var i = 0; i < numThreads; i++)
                 {
                     threadPool.QueueUserWorkItem(badCallback);
+                    Thread.Sleep(20);
                 }
-                //wait a second for all work to be completed
-                Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
+
+                //sanity check
+                Assert.AreEqual(numThreads, threadIds.Distinct().Count());
 
                 //run the job again. Should get 3 more managed thread IDs
-                for (var i = 0; i < numThreads; i++)
+                for (var i = 0; i < numThreads*10; i++)
                 {
                     threadPool.QueueUserWorkItem(goodCallback);
+                    Thread.Sleep(20);
                 }
-                Task.Delay(TimeSpan.FromSeconds(0.5)).Wait();
             }
 
             // half of thread IDs should belong to failed threads, other half to successful ones
