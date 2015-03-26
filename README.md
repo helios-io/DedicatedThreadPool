@@ -48,30 +48,30 @@ task.Wait();
 Latest benchmark on our build server (2 core Windows Azure A2 medium)
 
 ```xml
-[04:01:18][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000 items
-[04:01:18][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[04:01:18][Step 1/1] System.Threading.ThreadPool
-[04:01:18][Step 1/1] 00:00:00.0060000
-[04:01:18][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[04:01:19][Step 1/1] 00:00:00.0100000
-[04:01:19][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 100000 items
-[04:01:19][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[04:01:19][Step 1/1] System.Threading.ThreadPool
-[04:01:19][Step 1/1] 00:00:00.0520000
-[04:01:19][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[04:01:19][Step 1/1] 00:00:00.0420000
-[04:01:19][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 1000000 items
-[04:01:19][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[04:01:19][Step 1/1] System.Threading.ThreadPool
-[04:01:23][Step 1/1] 00:00:00.6630000
-[04:01:23][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[04:01:26][Step 1/1] 00:00:00.4290000
-[04:01:26][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000000 items
-[04:01:26][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[04:01:26][Step 1/1] System.Threading.ThreadPool
-[04:02:14][Step 1/1] 00:00:08.0290000
-[04:02:14][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[04:02:41][Step 1/1] 00:00:04.5240000
+[20:27:48][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000 items
+[20:27:48][Step 1/1] DedicatedThreadFiber.NumThreads: 2
+[20:27:48][Step 1/1] System.Threading.ThreadPool
+[20:27:48][Step 1/1] 00:00:00.0070000
+[20:27:48][Step 1/1] Helios.Concurrency.DedicatedThreadPool
+[20:27:49][Step 1/1] 00:00:00.2100000
+[20:27:49][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 100000 items
+[20:27:49][Step 1/1] DedicatedThreadFiber.NumThreads: 2
+[20:27:49][Step 1/1] System.Threading.ThreadPool
+[20:27:49][Step 1/1] 00:00:00.0600000
+[20:27:49][Step 1/1] Helios.Concurrency.DedicatedThreadPool
+[20:27:51][Step 1/1] 00:00:00.1900000
+[20:27:51][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 1000000 items
+[20:27:51][Step 1/1] DedicatedThreadFiber.NumThreads: 2
+[20:27:51][Step 1/1] System.Threading.ThreadPool
+[20:27:55][Step 1/1] 00:00:00.6840000
+[20:27:55][Step 1/1] Helios.Concurrency.DedicatedThreadPool
+[20:27:58][Step 1/1] 00:00:00.5160000
+[20:27:58][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000000 items
+[20:27:58][Step 1/1] DedicatedThreadFiber.NumThreads: 2
+[20:27:58][Step 1/1] System.Threading.ThreadPool
+[20:28:42][Step 1/1] 00:00:07.1590000
+[20:28:42][Step 1/1] Helios.Concurrency.DedicatedThreadPool
+[20:29:04][Step 1/1] 00:00:03.7330000
 ```
 
 ## License
