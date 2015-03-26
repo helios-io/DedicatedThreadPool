@@ -30,12 +30,15 @@ namespace Helios.Concurrency
         /// </summary>
         public const ThreadType DefaultThreadType = ThreadType.Background;
 
-        public DedicatedThreadPoolSettings(int numThreads) : this(numThreads, DefaultThreadType) { }
+        public DedicatedThreadPoolSettings(int numThreads, TimeSpan? deadlockTimeout = null) : this(numThreads, DefaultThreadType, deadlockTimeout) { }
 
-        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType)
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, TimeSpan? deadlockTimeout = null)
         {
             ThreadType = threadType;
             NumThreads = numThreads;
+            DeadlockTimeout = deadlockTimeout;
+            if(deadlockTimeout.HasValue && deadlockTimeout.Value.TotalMilliseconds <= 0)
+                throw new ArgumentOutOfRangeException("deadlockTimeout", string.Format("deadlockTimeout must be null or at least 1ms. Was {0}.", deadlockTimeout));
             if (numThreads <= 0)
                 throw new ArgumentOutOfRangeException("numThreads", string.Format("numThreads must be at least 1. Was {0}", numThreads));
         }
@@ -49,6 +52,14 @@ namespace Helios.Concurrency
         /// The type of threads to run in this thread pool.
         /// </summary>
         public ThreadType ThreadType { get; private set; }
+
+        /// <summary>
+        /// Interval to check for thread deadlocks.
+        /// 
+        /// If a thread takes longer than <see cref="DeadlockTimeout"/> it will be aborted
+        /// and replaced.
+        /// </summary>
+        public TimeSpan? DeadlockTimeout { get; private set; }
     }
 
     /// <summary>
@@ -194,20 +205,71 @@ namespace Helios.Concurrency
         }
     }
 
+
+
     /// <summary>
     /// An instanced, dedicated thread pool.
     /// </summary>
     internal class DedicatedThreadPool : IDisposable
     {
+        internal class DedicatedThreadPoolSupervisor : IDisposable
+        {
+            private readonly Timer _timer;
+
+            internal DedicatedThreadPoolSupervisor(DedicatedThreadPool pool)
+            {
+
+                //don't set up a timer if a timeout wasn't specified
+                if (pool.Settings.DeadlockTimeout == null)
+                    return;
+
+                _timer = new Timer(_ =>
+                {
+                    foreach (var worker in pool.Workers)
+                    {
+                        var w = worker;
+                        if (Interlocked.Exchange(ref w.Status, 0) == 0)
+                        {
+                            //this requests a new new worker and calls ForceTermination on the old worker
+                            //Potential problem here: if the thread is not dead for real, we might abort real work.. there is no way to tell the difference between 
+                            //deadlocked or just very long running tasks
+                            var newWorker = pool.RequestThread(w);
+                            continue;
+                        }
+
+                        //schedule heartbeat action to worker
+                        worker.AddWork(() =>
+                        {
+                            Interlocked.Increment(ref w.Status);
+                        });
+
+                    }
+                }, null, pool.Settings.DeadlockTimeout.Value, pool.Settings.DeadlockTimeout.Value);
+            }
+
+            public void Dispose()
+            {
+                /*
+                 * Timer can be null if no deadlock interval was defined in
+                 * DedicatedThreadPoolSettings.
+                 */
+                if (_timer != null)
+                {
+                    _timer.Dispose();
+                }
+            }
+        }
        
         public DedicatedThreadPool(DedicatedThreadPoolSettings settings)
         {
             Settings = settings;
-            Workers = Enumerable.Repeat(new WorkerQueue(), settings.NumThreads).ToArray();
+            //Fixed serious bug that yeilded the _same_ worker queue for NumThreads times
+            Workers = Enumerable.Repeat(0, settings.NumThreads).Select(_ => new WorkerQueue()).ToArray();
             foreach (var worker in Workers)
             {
-                new PoolWorker(worker, this);
+                new PoolWorker(worker, this, false);
             }
+            _supervisor = new DedicatedThreadPoolSupervisor(this);
         }
 
         public DedicatedThreadPoolSettings Settings { get; private set; }        
@@ -224,6 +286,8 @@ namespace Helios.Concurrency
         /// </summary>
         private volatile int _index = 0;
 
+        private readonly DedicatedThreadPoolSupervisor _supervisor;
+
         public bool WasDisposed { get; private set; }
 
         private void Shutdown()
@@ -231,9 +295,10 @@ namespace Helios.Concurrency
             ShutdownRequested = true;
         }
 
-        private void RequestThread(WorkerQueue unclaimedQueue)
+        private PoolWorker RequestThread(WorkerQueue unclaimedQueue, bool errorRecovery = false)
         {
-            var worker = new PoolWorker(unclaimedQueue, this);
+            var worker = new PoolWorker(unclaimedQueue, this, errorRecovery);
+            return worker;
         }
 
         public bool QueueUserWorkItem(Action work)
@@ -252,7 +317,9 @@ namespace Helios.Concurrency
                     unchecked
                     {
                         _index = (_index + 1);
-                        Workers[_index & 0x7fffffff  % Settings.NumThreads].AddWork(work);
+                        //need to wrap bitwise operations in parens to preserve order, otherwise this won't round-robin
+                        //to some actors if Settings.NumThreads is an odd number
+                        Workers[(_index & 0x7fffffff) % Settings.NumThreads].AddWork(work);
                     }
                 //}
                 //else //recursive task queue, write directly
@@ -282,6 +349,7 @@ namespace Helios.Concurrency
             {
                 if (isDisposing)
                 {
+                    _supervisor.Dispose();
                     Shutdown();
                 }
             }
@@ -297,11 +365,22 @@ namespace Helios.Concurrency
         {
             internal ConcurrentQueue<Action> WorkQueue = new ConcurrentQueue<Action>();
             internal readonly ManualResetEventSlim Event = new ManualResetEventSlim(false);
+            internal int Status=1;
+            private PoolWorker _poolWorker;
 
             public void AddWork(Action work)
             {
                 WorkQueue.Enqueue(work);
                 Event.Set();
+            }
+
+            internal void ReplacePoolWorker(PoolWorker poolWorker, bool errorRecovery)
+            {
+                if (_poolWorker != null && !errorRecovery)
+                {
+                    _poolWorker.ForceTermination();
+                }
+                _poolWorker = poolWorker;
             }
         }
 
@@ -312,15 +391,18 @@ namespace Helios.Concurrency
 
             private ManualResetEventSlim _event;
             private ConcurrentQueue<Action> _workQueue;
+            private readonly Thread _thread;
 
-            public PoolWorker(WorkerQueue work, DedicatedThreadPool pool)
+            public int ThreadId { get { return _thread.ManagedThreadId; } }
+
+            public PoolWorker(WorkerQueue work, DedicatedThreadPool pool, bool errorRecovery)
             {
                 _work = work;
                 _pool = pool;
                 _event = _work.Event;
                 _workQueue = _work.WorkQueue;
 
-                var thread = new Thread(() =>
+                _thread = new Thread(() =>
                 {
                     CurrentWorker = this;
                     
@@ -340,13 +422,13 @@ namespace Helios.Concurrency
                             catch (Exception ex)
                             {
                                 /* request a new thread then shut down */
-                                _pool.RequestThread(_work);
+                                _pool.RequestThread(_work, errorRecovery:true);
                                 CurrentWorker = null;
                                 _work = null;
                                 _event = null;
                                 _workQueue = null;
                                 _pool = null;
-                                throw;
+                                return;
                             }
                         }
                         if (_workQueue.IsEmpty)
@@ -362,7 +444,17 @@ namespace Helios.Concurrency
                 {
                     IsBackground = _pool.Settings.ThreadType == ThreadType.Background
                 };
-                thread.Start();
+
+                //replace the worker once the Thread has been created, but not started
+                work.ReplacePoolWorker(this, errorRecovery);
+
+                _thread.Start();
+            }
+
+            internal void ForceTermination()
+            {
+                //TODO: abort is no guarantee for thread abortion
+                _thread.Abort();
             }
         }
 
