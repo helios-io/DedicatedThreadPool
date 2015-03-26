@@ -194,20 +194,54 @@ namespace Helios.Concurrency
         }
     }
 
+
+
     /// <summary>
     /// An instanced, dedicated thread pool.
     /// </summary>
     internal class DedicatedThreadPool : IDisposable
     {
+        internal class DedicatedThreadPoolSupervisor
+        {
+            internal DedicatedThreadPoolSupervisor(DedicatedThreadPool pool)
+            {
+                //TODO: when should timer be killed?
+                var timer = new Timer(_ =>
+                {
+                    foreach (var worker in pool.Workers)
+                    {
+                        var w = worker;
+                        if (Interlocked.Exchange(ref w.Status, 0) == 0)
+                        {
+                            //this requests a new new worker and calls ForceTermination on the old worker
+                            //Potential problem here: if the thread is not dead for real, we might abort real work.. there is no way to tell the difference between 
+                            //deadlocked or just very long running tasks
+                            var newWorker = pool.RequestThread(w);
+                            continue;
+                        }
+
+                        //schedule heartbeat action to worker
+                        worker.AddWork(() =>
+                        {
+                            Interlocked.Increment(ref w.Status);
+                        });
+
+                    }
+                    //TODO: make the poll time out configurable
+                }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+            }
+        }
        
         public DedicatedThreadPool(DedicatedThreadPoolSettings settings)
         {
             Settings = settings;
-            Workers = Enumerable.Repeat(new WorkerQueue(), settings.NumThreads).ToArray();
+            //Fixed serious bug that yeilded the _same_ worker queue for NumThreads times
+            Workers = Enumerable.Repeat(0, settings.NumThreads).Select(_ => new WorkerQueue()).ToArray();
             foreach (var worker in Workers)
             {
                 new PoolWorker(worker, this);
             }
+            _supervisor = new DedicatedThreadPoolSupervisor(this);
         }
 
         public DedicatedThreadPoolSettings Settings { get; private set; }        
@@ -224,6 +258,8 @@ namespace Helios.Concurrency
         /// </summary>
         private volatile int _index = 0;
 
+        private readonly DedicatedThreadPoolSupervisor _supervisor;
+
         public bool WasDisposed { get; private set; }
 
         private void Shutdown()
@@ -231,9 +267,10 @@ namespace Helios.Concurrency
             ShutdownRequested = true;
         }
 
-        private void RequestThread(WorkerQueue unclaimedQueue)
+        private PoolWorker RequestThread(WorkerQueue unclaimedQueue)
         {
             var worker = new PoolWorker(unclaimedQueue, this);
+            return worker;
         }
 
         public bool QueueUserWorkItem(Action work)
@@ -297,11 +334,22 @@ namespace Helios.Concurrency
         {
             internal ConcurrentQueue<Action> WorkQueue = new ConcurrentQueue<Action>();
             internal readonly ManualResetEventSlim Event = new ManualResetEventSlim(false);
+            internal int Status=1;
+            private PoolWorker _poolWorker;
 
             public void AddWork(Action work)
             {
                 WorkQueue.Enqueue(work);
                 Event.Set();
+            }
+
+            internal void ReplacePoolWorker(PoolWorker poolWorker)
+            {
+                if (_poolWorker != null)
+                {
+                    _poolWorker.ForceTermination();
+                }
+                _poolWorker = poolWorker;
             }
         }
 
@@ -312,6 +360,7 @@ namespace Helios.Concurrency
 
             private ManualResetEventSlim _event;
             private ConcurrentQueue<Action> _workQueue;
+            private readonly Thread _thread;
 
             public PoolWorker(WorkerQueue work, DedicatedThreadPool pool)
             {
@@ -319,8 +368,9 @@ namespace Helios.Concurrency
                 _pool = pool;
                 _event = _work.Event;
                 _workQueue = _work.WorkQueue;
+                work.ReplacePoolWorker(this);
 
-                var thread = new Thread(() =>
+                _thread = new Thread(() =>
                 {
                     CurrentWorker = this;
                     
@@ -349,11 +399,11 @@ namespace Helios.Concurrency
                                 throw;
                             }
                         }
-                        if (_workQueue.Count == 0)
+                        if (_workQueue.IsEmpty)
                         {
                             _event.Reset();
                         }
-                        if (_workQueue.Count > 0)
+                        if (_workQueue.IsEmpty)
                         {
                             _event.Set();
                         }
@@ -362,7 +412,13 @@ namespace Helios.Concurrency
                 {
                     IsBackground = _pool.Settings.ThreadType == ThreadType.Background
                 };
-                thread.Start();
+                _thread.Start();
+            }
+
+            internal void ForceTermination()
+            {
+                //TODO: abort is no guarantee for thread abortion
+                _thread.Abort();
             }
         }
 
