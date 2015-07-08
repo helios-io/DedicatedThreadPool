@@ -64,7 +64,7 @@ namespace Helios.Concurrency.Tests
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
             };
 
-            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, TimeSpan.FromSeconds(1))))
+            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, null, TimeSpan.FromSeconds(1))))
             {
                 for (var i = 0; i < numThreads; i++)
                 {
