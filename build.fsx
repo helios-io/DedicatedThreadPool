@@ -328,6 +328,9 @@ Target "All" DoNothing
 // tests dependencies
 "CleanTests" ==> "RunTests"
 
+// NBench dependencies
+"CleanPerf" ==> "NBench"
+
 // nuget dependencies
 
 "BuildRelease" ==> "All"
