@@ -17,7 +17,7 @@ mono $SCRIPT_PATH/tools/nuget/NuGet.exe install NBench.Runner -OutputDirectory $
 
 
 if ! [ -e $SCRIPT_PATH/src/packages/SourceLink.Fake/tools/SourceLink.fsx ] ; then
-    mono $SCRIPT_PATH/tools/nuget/NuGet.exe install SourceLink.Fake -OutputDirectory $SCRIPT_PATH/src/packages -ExcludeVersion
+    mono $SCRIPT_PATH/tools/nuget/NuGet.exe install SourceLink.Fake -OutputDirectory $SCRIPT_PATH/src/packages -ExcludeVersion -Version 0.1.6
 
 fi
 
