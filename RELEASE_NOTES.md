@@ -1,3 +1,19 @@
+#### 0.3.0 April 05 2016
+Major upgrade to the performance and stability of `DedicatedThreadPool`.
+
+Previous (v0.2) numbers:
+
+          Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    2,381,933.51 |    2,335,262.42 |    2,123,061.11 |       75,849.97 |
+
+Current (v0.3) numbers:
+
+          Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    9,998,100.36 |    8,661,529.31 |    7,093,003.46 |      944,954.17 |
+
+
 #### 0.2.0 Mar 26 2015
 Added deadlock detection to the `DedicatedThreadPool` and other bug / performance fixes.
 

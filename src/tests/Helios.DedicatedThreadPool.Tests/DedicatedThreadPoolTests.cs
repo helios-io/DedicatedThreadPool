@@ -25,8 +25,8 @@ namespace Helios.Concurrency.Tests
             Assert.Pass(string.Format("Passed! Final counter value: {0} / Expected {1}", atomicCounter.Current, 1000));
         }
 
-        [Test(Description = "Ensure that the number of threads running in the pool concurrently equal exactly the DedicatedThreadPoolSettings.NumThreads property")]
-        public void Should_process_workload_across_exactly_DedicatedThreadPoolSettings_NumThreads()
+        [Test(Description = "Ensure that the number of threads running in the pool concurrently equal is AtMost equal to the DedicatedThreadPoolSettings.NumThreads property")]
+        public void Should_process_workload_across_AtMost_DedicatedThreadPoolSettings_NumThreads()
         {
             var numThreads = Environment.ProcessorCount;
             var threadIds = new ConcurrentBag<int>();
@@ -46,7 +46,7 @@ namespace Helios.Concurrency.Tests
                 SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
             }
 
-            Assert.AreEqual(numThreads, threadIds.Distinct().Count());
+            Assert.True(threadIds.Distinct().Count() <= numThreads);
         }
 
         [Test(Description = "Have a user-defined method that throws an exception? The world should not end.")]
@@ -64,7 +64,7 @@ namespace Helios.Concurrency.Tests
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
             };
 
-            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, TimeSpan.FromSeconds(1))))
+            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, null, TimeSpan.FromSeconds(1))))
             {
                 for (var i = 0; i < numThreads; i++)
                 {
@@ -75,7 +75,7 @@ namespace Helios.Concurrency.Tests
                 //sanity check
                 Assert.AreEqual(numThreads, threadIds.Distinct().Count());
 
-                //run the job again. Should get 3 more managed thread IDs
+                //run the job again. Should get the same thread IDs as before
                 for (var i = 0; i < numThreads*10; i++)
                 {
                     threadPool.QueueUserWorkItem(goodCallback);
@@ -84,7 +84,7 @@ namespace Helios.Concurrency.Tests
             }
 
             // half of thread IDs should belong to failed threads, other half to successful ones
-            Assert.AreEqual(numThreads * 2, threadIds.Distinct().Count());
+            Assert.AreEqual(numThreads, threadIds.Distinct().Count());
         }
     }
 }

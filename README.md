@@ -47,35 +47,19 @@ task.Wait();
 
 Latest benchmark on our build server (2 core Windows Azure A2 medium)
 
-```xml
-[20:27:48][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000 items
-[20:27:48][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[20:27:48][Step 1/1] System.Threading.ThreadPool
-[20:27:48][Step 1/1] 00:00:00.0070000
-[20:27:48][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[20:27:49][Step 1/1] 00:00:00.2100000
-[20:27:49][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 100000 items
-[20:27:49][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[20:27:49][Step 1/1] System.Threading.ThreadPool
-[20:27:49][Step 1/1] 00:00:00.0600000
-[20:27:49][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[20:27:51][Step 1/1] 00:00:00.1900000
-[20:27:51][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 1000000 items
-[20:27:51][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[20:27:51][Step 1/1] System.Threading.ThreadPool
-[20:27:55][Step 1/1] 00:00:00.6840000
-[20:27:55][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[20:27:58][Step 1/1] 00:00:00.5160000
-[20:27:58][Step 1/1] Comparing Helios.Concurrency.DedicatedThreadPool vs System.Threading.ThreadPool for 10000000 items
-[20:27:58][Step 1/1] DedicatedThreadFiber.NumThreads: 2
-[20:27:58][Step 1/1] System.Threading.ThreadPool
-[20:28:42][Step 1/1] 00:00:07.1590000
-[20:28:42][Step 1/1] Helios.Concurrency.DedicatedThreadPool
-[20:29:04][Step 1/1] 00:00:03.7330000
-```
+### Helios.DedicatedThreadPool v0.3
+
+          Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    9,998,100.36 |    8,661,529.31 |    7,093,003.46 |      944,954.17 |
+
+### System.Threading.ThreadPool
+          Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    2,651,289.19 |    2,510,678.63 |    2,098,882.55 |      179,585.24 |
 
 ## License
 
 See [LICENSE](LICENSE) for details.
 
-Copyright (C) 2015 Roger Alsing, Aaron Stannard
+Copyright (C) 2015-2016 Roger Alsing, Aaron Stannard, Jeff Cyr

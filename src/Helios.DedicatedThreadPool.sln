@@ -1,17 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool", "core\Helios.DedicatedThreadPool\Helios.DedicatedThreadPool.csproj", "{6C8F359E-E479-44D5-8FA0-02BFD38C3860}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.Tests", "tests\Helios.DedicatedThreadPool.Tests\Helios.DedicatedThreadPool.Tests.csproj", "{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.VsThreadpoolBenchmark", "benchmark\Helios.DedicatedThreadPool.VsThreadpoolBenchmark\Helios.DedicatedThreadPool.VsThreadpoolBenchmark.csproj", "{3636FEFB-5631-4D26-9923-9754267AF325}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{741F51D5-FB48-4AE3-837E-3C32FAC6584E}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmark", "benchmark", "{E9ADEF95-5656-4CD6-B3EA-E9DE7F0DED85}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{E86B275F-E912-47C5-8F5E-BA62D5959EBD}"
 EndProject
@@ -27,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{39EF5B
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.Tests.Performance", "tests\Helios.DedicatedThreadPool.Tests.Performance\Helios.DedicatedThreadPool.Tests.Performance.csproj", "{428DF580-1734-4AB6-B80E-F5ABABCE61D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,10 +39,10 @@ Global
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3636FEFB-5631-4D26-9923-9754267AF325}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3636FEFB-5631-4D26-9923-9754267AF325}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3636FEFB-5631-4D26-9923-9754267AF325}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3636FEFB-5631-4D26-9923-9754267AF325}.Release|Any CPU.Build.0 = Release|Any CPU
+		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -52,9 +50,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{6C8F359E-E479-44D5-8FA0-02BFD38C3860} = {E86B275F-E912-47C5-8F5E-BA62D5959EBD}
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
-		{3636FEFB-5631-4D26-9923-9754267AF325} = {E9ADEF95-5656-4CD6-B3EA-E9DE7F0DED85}
-	EndGlobalSection
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
+		{428DF580-1734-4AB6-B80E-F5ABABCE61D6} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 	EndGlobalSection
 EndGlobal

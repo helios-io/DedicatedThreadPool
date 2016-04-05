@@ -21,6 +21,10 @@ bld/
 # Roslyn cache directories
 *.ide/
 
+# FAKE
+.fake/
+[Pp]erf[Rr]esult*/
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
