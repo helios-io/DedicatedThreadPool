@@ -11,7 +11,7 @@ if not exist src\packages\SourceLink.Fake\tools\SourceLink.fsx (
 )
 rem cls
 
-tools\nuget\NuGet.exe install NBench.Runner -OutputDirectory src\packages -ExcludeVersion
+tools\nuget\NuGet.exe install NBench.Runner -OutputDirectory src\packages -ExcludeVersion -Version 0.1.6
 
 set encoding=utf-8
 src\packages\FAKE\tools\FAKE.exe build.fsx %*
