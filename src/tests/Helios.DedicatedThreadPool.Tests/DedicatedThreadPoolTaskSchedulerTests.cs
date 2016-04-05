@@ -72,7 +72,7 @@ namespace Helios.Concurrency.Tests
             //spin until work is completed
             SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
 
-            Assert.AreEqual(Pool.Settings.NumThreads, threadIds.Distinct().Count());
+            Assert.True(threadIds.Distinct().Count() <= Pool.Settings.NumThreads);
         }
     }
 }
