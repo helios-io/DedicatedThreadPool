@@ -2,9 +2,18 @@
   <PropertyGroup>
     <ProductName>Helios.DedicatedThreadPool</ProductName>
     <Copyright>Copyright © 2015-2016 Roger Alsing, Aaron Stannard, Jeff Cyr</Copyright>
-    <Version>1.0.0.0</Version>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <PackageProjectUrl>https://github.com/helios-io/DedicatedThreadPool</PackageProjectUrl>
     <PackageLicenseExpression>Apache</PackageLicenseExpression>
+    <PackageReleaseNotes>Major upgrade to the performance and stability of `DedicatedThreadPool`.
+Previous (v0.2) numbers:
+Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    2,381,933.51 |    2,335,262.42 |    2,123,061.11 |       75,849.97 |
+Current (v0.3) numbers:
+Metric |       Units / s |         Max / s |     Average / s |         Min / s |      StdDev / s |
+---------------- |---------------- |---------------- |---------------- |---------------- |---------------- |
+[Counter] BenchmarkCalls |      operations |    9,998,100.36 |    8,661,529.31 |    7,093,003.46 |      944,954.17 |</PackageReleaseNotes>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/helios-io/DedicatedThreadPool</RepositoryUrl>
   </PropertyGroup>
