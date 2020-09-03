@@ -1,259 +1,285 @@
-﻿#I @"src/packages/FAKE/tools"
+#I @"tools/FAKE/tools"
 #r "FakeLib.dll"
 
 open System
 open System.IO
 open System.Text
+
 open Fake
-open Fake.FileUtils
-open Fake.TaskRunnerHelper
+open Fake.DotNetCli
+open Fake.DocFxHelper
 
-//--------------------------------------------------------------------------------
 // Information about the project for Nuget and Assembly info files
-//-------------------------------------------------------------------------------
-
-let product = "Helios.DedicatedThreadPool"
-let authors = [ "Aaron Stannard";"Roger Alsing"]
-let copyright = "Copyright © Roger Alsing, Aaron Stannard 2015"
-let company = "Helios Framework"
-let description = "An instanced, dedicated ThreadPool for eliminating \"noisy neighbor\" problems on the CLR ThreadPool "
-let tags = ["threads";"threadpool";"fiber";"helios";"akka.net";"akka"]
+let product = "Akka.Streams.Kafka"
 let configuration = "Release"
 
-// Read release notes and version
+// Metadata used when signing packages and DLLs
+let signingName = "Akka.Streams.Kafka"
+let signingDescription = "Apache Kafka adapter for Akka.NET Streams"
+let signingUrl = "https://github.com/akkadotnet/Akka.Streams.Kafka"
 
-let release =
-    File.ReadLines "RELEASE_NOTES.md"
+// Read release notes and version
+let codeDirectory = __SOURCE_DIRECTORY__ @@ "src"
+let solutionFile = FindFirstMatchingFile "*.sln" codeDirectory  // dynamically look up the solution
+let buildNumber = environVarOrDefault "BUILD_NUMBER" "0"
+let hasTeamCity = (not (buildNumber = "0")) // check if we have the TeamCity environment variable for build # set
+let preReleaseVersionSuffix = "beta" + (if (not (buildNumber = "0")) then (buildNumber) else DateTime.UtcNow.Ticks.ToString())
+
+let releaseNotes =
+    File.ReadLines (__SOURCE_DIRECTORY__ @@ "RELEASE_NOTES.md")
     |> ReleaseNotesHelper.parseReleaseNotes
 
-//--------------------------------------------------------------------------------
+let versionFromReleaseNotes =
+    match releaseNotes.SemVer.PreRelease with
+    | Some r -> r.Origin
+    | None -> ""
+
+let versionSuffix = 
+    match (getBuildParam "nugetprerelease") with
+    | "dev" -> preReleaseVersionSuffix
+    | "" -> versionFromReleaseNotes
+    | str -> str
+
 // Directories
+let toolsDir = __SOURCE_DIRECTORY__ @@ "tools"
+let output = __SOURCE_DIRECTORY__  @@ "bin"
+let outputTests = __SOURCE_DIRECTORY__ @@ "TestResults"
+let outputPerfTests = __SOURCE_DIRECTORY__ @@ "PerfResults"
+let outputNuGet = output @@ "nuget"
 
-let binDir = "bin"
-let testOutput = FullName "TestResults"
-let perfOutput = FullName "PerfResults"
-
-let nugetDir = binDir @@ "nuget"
-let workingDir = binDir @@ "build"
-let nugetExe = FullName @"tools\nuget\NuGet.exe"
-
-open Fake.RestorePackageHelper
-Target "RestorePackages" (fun _ -> 
-     "./src/Helios.DedicatedThreadPool.sln"
-     |> RestoreMSSolutionPackages (fun p ->
-         { p with
-             OutputPath = "./src/packages"
-             Retries = 4 })
- )
-
-//--------------------------------------------------------------------------------
-// Clean build results
+// Copied from original NugetCreate target
+let nugetDir = output @@ "nuget"
+let workingDir = output @@ "build"
+let nugetExe = FullName @"./tools/nuget.exe"
 
 Target "Clean" (fun _ ->
-    CleanDir binDir
+    ActivateFinalTarget "KillCreatedProcesses"
+
+    CleanDir output
+    CleanDir outputTests
+    CleanDir outputPerfTests
+    CleanDir outputNuGet
+    CleanDir "docs/_site"
 )
 
-//--------------------------------------------------------------------------------
-// Build the solution
-
-Target "Build" (fun _ ->
-    !!"src/Helios.DedicatedThreadPool.sln"
-    |> MSBuildRelease "" "Rebuild"
-    |> ignore
+Target "AssemblyInfo" (fun _ ->
+    XmlPokeInnerText "./src/common.props" "//Project/PropertyGroup/VersionPrefix" releaseNotes.AssemblyVersion    
+    XmlPokeInnerText "./src/common.props" "//Project/PropertyGroup/PackageReleaseNotes" (releaseNotes.Notes |> String.concat "\n")
 )
 
-//--------------------------------------------------------------------------------
-// Copy the build output to bin directory
-//--------------------------------------------------------------------------------
-
-Target "CopyOutput" (fun _ ->    
-    let copyOutput project =
-        let src = "src" @@ project @@ @"bin\release\"
-        let dst = binDir @@ project
-        CopyDir dst src allFiles
-    [ "core/Helios.DedicatedThreadPool"
-    ]
-    |> List.iter copyOutput
+Target "RestorePackages" (fun _ ->
+    DotNetCli.Restore
+        (fun p -> 
+            { p with
+                Project = solutionFile
+                NoCache = false })
 )
 
-Target "BuildRelease" DoNothing
+Target "Build" (fun _ ->          
+    DotNetCli.Build
+        (fun p -> 
+            { p with
+                Project = solutionFile
+                Configuration = configuration }) // "Rebuild"  
+)
+
 
 //--------------------------------------------------------------------------------
-// Tests targets
+// Tests targets 
 //--------------------------------------------------------------------------------
-Target "RunTests" <| fun _ ->
-    let nunitAssemblies = !! "src/tests/**/bin/Release/*.Tests.dll"
+module internal ResultHandling =
+    let (|OK|Failure|) = function
+        | 0 -> OK
+        | x -> Failure x
 
-    mkdir testOutput
-    nunitAssemblies |> NUnit(fun p -> 
-        {p with 
-            DisableShadowCopy = true;
-            OutputFile = testOutput @@ "TestResults.xml" })
+    let buildErrorMessage = function
+        | OK -> None
+        | Failure errorCode ->
+            Some (sprintf "xUnit2 reported an error (Error Code %d)" errorCode)
+
+    let failBuildWithMessage = function
+        | DontFailBuild -> traceError
+        | _ -> (fun m -> raise(FailedTestsException m))
+
+    let failBuildIfXUnitReportedError errorLevel =
+        buildErrorMessage
+        >> Option.iter (failBuildWithMessage errorLevel)
+
+Target "RunTests" (fun _ ->
+    let projects = 
+        match (isWindows) with 
+        | true -> !! "./src/**/*.Tests.csproj"
+                  -- "./src/**/*.Integration.Tests.csproj" // Zipkin containers can't run on Windows VMs
+        | _ -> !! "./src/**/*.Tests.csproj" // if you need to filter specs for Linux vs. Windows, do it here
+
+    let runSingleProject project =
+        let arguments =
+            match (hasTeamCity) with
+            | true -> (sprintf "test -c Release --no-build --logger:trx --logger:\"console;verbosity=normal\" --results-directory %s -- -parallel none -teamcity" (outputTests))
+            | false -> (sprintf "test -c Release --no-build --logger:trx --logger:\"console;verbosity=normal\" --results-directory %s -- -parallel none" (outputTests))
+
+        let result = ExecProcess(fun info ->
+            info.FileName <- "dotnet"
+            info.WorkingDirectory <- (Directory.GetParent project).FullName
+            info.Arguments <- arguments) (TimeSpan.FromMinutes 30.0) 
         
+        ResultHandling.failBuildIfXUnitReportedError TestRunnerErrorLevel.Error result  
 
-//--------------------------------------------------------------------------------
-// Clean test output
+    projects |> Seq.iter (log)
+    projects |> Seq.iter (runSingleProject)
+)
 
-Target "CleanTests" <| fun _ ->
-    DeleteDir testOutput
-
-//--------------------------------------------------------------------------------
-// NBench targets
-//--------------------------------------------------------------------------------
 Target "NBench" <| fun _ ->
-    let testSearchPath =
-        let assemblyFilter = getBuildParamOrDefault "spec-assembly" String.Empty
-        sprintf "src/tests/**/bin/Release/*%s*.Tests.Performance.dll" assemblyFilter
+    let projects = 
+        match (isWindows) with 
+        | true -> !! "./src/**/*.Tests.Performance.csproj"
+        | _ -> !! "./src/**/*.Tests.Performance.csproj" // if you need to filter specs for Linux vs. Windows, do it here
 
-    mkdir perfOutput
-    let nbenchTestPath = findToolInSubPath "NBench.Runner.exe" "src/packges/NBench.Runner*"
-    let nbenchTestAssemblies = !! testSearchPath
-    printfn "Using NBench.Runner: %s" nbenchTestPath
 
-    let runNBench assembly =
-        let spec = getBuildParam "spec"
+    let runSingleProject project =
+        let arguments =
+            match (hasTeamCity) with
+            | true -> (sprintf "nbench --nobuild --teamcity --concurrent true --trace true --output %s" (outputPerfTests))
+            | false -> (sprintf "nbench --nobuild --concurrent true --trace true --output %s" (outputPerfTests))
 
-        let args = new StringBuilder()
-                |> append assembly
-                |> append (sprintf "output-directory=\"%s\"" perfOutput)
-                |> toText
-
-        let result = ExecProcess(fun info -> 
-            info.FileName <- nbenchTestPath
-            info.WorkingDirectory <- (Path.GetDirectoryName (FullName nbenchTestPath))
-            info.Arguments <- args) (System.TimeSpan.FromMinutes 15.0) (* Reasonably long-running task. *)
-        if result <> 0 then failwithf "NBench.Runner failed. %s %s" nbenchTestPath args
+        let result = ExecProcess(fun info ->
+            info.FileName <- "dotnet"
+            info.WorkingDirectory <- (Directory.GetParent project).FullName
+            info.Arguments <- arguments) (TimeSpan.FromMinutes 30.0) 
+        
+        ResultHandling.failBuildIfXUnitReportedError TestRunnerErrorLevel.DontFailBuild result
     
-    nbenchTestAssemblies |> Seq.iter (runNBench)
+    projects |> Seq.iter runSingleProject
+
 
 //--------------------------------------------------------------------------------
-// Clean NBench output
-Target "CleanPerf" <| fun _ ->
-    DeleteDir perfOutput
+// Code signing targets
+//--------------------------------------------------------------------------------
+Target "SignPackages" (fun _ ->
+    let canSign = hasBuildParam "SignClientSecret" && hasBuildParam "SignClientUser"
+    if(canSign) then
+        log "Signing information is available."
+        
+        let assemblies = !! (outputNuGet @@ "*.nupkg")
 
+        let signPath =
+            let globalTool = tryFindFileOnPath "SignClient.exe"
+            match globalTool with
+                | Some t -> t
+                | None -> if isWindows then findToolInSubPath "SignClient.exe" "tools/signclient"
+                          elif isMacOS then findToolInSubPath "SignClient" "tools/signclient"
+                          else findToolInSubPath "SignClient" "tools/signclient"
+
+        let signAssembly assembly =
+            let args = StringBuilder()
+                    |> append "sign"
+                    |> append "--config"
+                    |> append (__SOURCE_DIRECTORY__ @@ "appsettings.json") 
+                    |> append "-i"
+                    |> append assembly
+                    |> append "-r"
+                    |> append (getBuildParam "SignClientUser")
+                    |> append "-s"
+                    |> append (getBuildParam "SignClientSecret")
+                    |> append "-n"
+                    |> append signingName
+                    |> append "-d"
+                    |> append signingDescription
+                    |> append "-u"
+                    |> append signingUrl
+                    |> toText
+
+            let result = ExecProcess(fun info -> 
+                info.FileName <- signPath
+                info.WorkingDirectory <- __SOURCE_DIRECTORY__
+                info.Arguments <- args) (System.TimeSpan.FromMinutes 5.0) (* Reasonably long-running task. *)
+            if result <> 0 then failwithf "SignClient failed.%s" args
+
+        assemblies |> Seq.iter (signAssembly)
+    else
+        log "SignClientSecret not available. Skipping signing"
+)
 
 //--------------------------------------------------------------------------------
 // Nuget targets 
 //--------------------------------------------------------------------------------
-module Nuget = 
 
-    // selected nuget description
-    let description project =
-        match project with
-        | _ -> description
+let overrideVersionSuffix (project:string) =
+    match project with
+    | _ -> versionSuffix // add additional matches to publish different versions for different projects in solution
+Target "CreateNuget" (fun _ ->    
+    let projects = !! "src/**/*.csproj" 
+                   -- "src/**/*Tests.csproj" // Don't publish unit tests
+                   -- "src/**/*Tests*.csproj"
 
-open Nuget
+    let runSingleProject project =
+        DotNetCli.Pack
+            (fun p -> 
+                { p with
+                    Project = project
+                    Configuration = configuration
+                    AdditionalArgs = ["--include-symbols --no-build"]
+                    VersionSuffix = overrideVersionSuffix project
+                    OutputPath = outputNuGet })
 
-//--------------------------------------------------------------------------------
-// Clean nuget directory
-Target "CleanNuget" (fun _ ->
-    CleanDir nugetDir
+    projects |> Seq.iter (runSingleProject)
 )
 
+Target "PublishNuget" (fun _ ->
+    let projects = !! "./bin/nuget/*.nupkg" -- "./bin/nuget/*.symbols.nupkg"
+    let apiKey = getBuildParamOrDefault "nugetkey" ""
+    let source = getBuildParamOrDefault "nugetpublishurl" ""
+    let symbolSource = getBuildParamOrDefault "symbolspublishurl" ""
+    let shouldPublishSymbolsPackages = not (symbolSource = "")
+
+    if (not (source = "") && not (apiKey = "") && shouldPublishSymbolsPackages) then
+        let runSingleProject project =
+            DotNetCli.RunCommand
+                (fun p -> 
+                    { p with 
+                        TimeOut = TimeSpan.FromMinutes 10. })
+                (sprintf "nuget push %s --api-key %s --source %s --symbol-source %s" project apiKey source symbolSource)
+
+        projects |> Seq.iter (runSingleProject)
+    else if (not (source = "") && not (apiKey = "") && not shouldPublishSymbolsPackages) then
+        let runSingleProject project =
+            DotNetCli.RunCommand
+                (fun p -> 
+                    { p with 
+                        TimeOut = TimeSpan.FromMinutes 10. })
+                (sprintf "nuget push %s --api-key %s --source %s" project apiKey source)
+
+        projects |> Seq.iter (runSingleProject)
+)
 
 //--------------------------------------------------------------------------------
-// Pack nuget for all projects
-// Publish to nuget.org if nugetkey is specified
+// Documentation 
+//--------------------------------------------------------------------------------  
+Target "DocFx" (fun _ ->
+    DotNetCli.Restore (fun p -> { p with Project = solutionFile })
+    DotNetCli.Build (fun p -> { p with Project = solutionFile; Configuration = configuration })
 
-let createNugetPackages _ =
-    let removeDir dir = 
-        let del _ = 
-            DeleteDir dir
-            not (directoryExists dir)
-        runWithRetries del 3 |> ignore
+    let docsPath = "./docs"
 
-    ensureDirectory nugetDir
-    for nuspec in !! "src/**/*.nuspec" do
-        printfn "Creating nuget packages for %s" nuspec
-        
-        CleanDir workingDir
+    DocFx (fun p -> 
+                { p with 
+                    Timeout = TimeSpan.FromMinutes 30.0; 
+                    WorkingDirectory  = docsPath; 
+                    DocFxJson = docsPath @@ "docfx.json" })
+)
 
-        let project = Path.GetFileNameWithoutExtension nuspec 
-        let projectDir = Path.GetDirectoryName nuspec
-        let projectFile = (!! (projectDir @@ project + ".*sproj")) |> Seq.head
-        
-        
-       
-        let packages = projectDir @@ "packages.config"        
-        let packageDependencies = if (fileExists packages) then (getDependencies packages) else []
-        let dependencies = packageDependencies
-        let releaseVersion = release.NugetVersion
+//--------------------------------------------------------------------------------
+// Cleanup
+//--------------------------------------------------------------------------------
 
-        let pack outputDir  =
-            NuGetHelper.NuGet
-                (fun p ->
-                    { p with
-                        Description = description project
-                        Authors = authors
-                        Copyright = copyright
-                        Project =  project
-                        Properties = ["Configuration", "Release"]
-                        ReleaseNotes = release.Notes |> String.concat "\n"
-                        Version = releaseVersion
-                        Tags = tags |> String.concat " "
-                        OutputPath = outputDir
-                        WorkingDir = workingDir
-                        Dependencies = dependencies
-                        Files = [
-                                (@"Helios.Concurrency.DedicatedThreadPool.cs", Some "content", None)
-                        ] })
-                nuspec
-
-        !! (projectDir @@ "Helios.Concurrency.DedicatedThreadPool.cs")
-        |> CopyFiles workingDir
-        
-        //Remove workingDir/src/obj and workingDir/src/bin
-
-        // Create both normal nuget package and symbols nuget package. 
-        // Uses the files we copied to workingDir and outputs to nugetdir
-        pack nugetDir
-
-let publishNugetPackages _ = 
-    let rec publishPackage url accessKey trialsLeft packageFile =
-        let tracing = enableProcessTracing
-        enableProcessTracing <- false
-        let args p =
-            match p with
-            | (pack, key, "") -> sprintf "push \"%s\" %s" pack key
-            | (pack, key, url) -> sprintf "push \"%s\" %s -source %s" pack key url
-
-        tracefn "Pushing %s Attempts left: %d" (FullName packageFile) trialsLeft
-        try 
-            let result = ExecProcess (fun info -> 
-                    info.FileName <- nugetExe
-                    info.WorkingDirectory <- (Path.GetDirectoryName (FullName packageFile))
-                    info.Arguments <- args (packageFile, accessKey,url)) (System.TimeSpan.FromMinutes 1.0)
-            enableProcessTracing <- tracing
-            if result <> 0 then failwithf "Error during NuGet symbol push. %s %s" nugetExe (args (packageFile, accessKey,url))
-        with exn -> 
-            if (trialsLeft > 0) then (publishPackage url accessKey (trialsLeft-1) packageFile)
-            else raise exn
-    let shouldPushNugetPackages = hasBuildParam "nugetkey"
-    let shouldPushSymbolsPackages = (hasBuildParam "symbolspublishurl") && (hasBuildParam "symbolskey")
-    
-    if (shouldPushNugetPackages || shouldPushSymbolsPackages) then
-        printfn "Pushing nuget packages"
-        if shouldPushNugetPackages then
-            let normalPackages= 
-                !! (nugetDir @@ "*.nupkg") 
-                -- (nugetDir @@ "*.symbols.nupkg") |> Seq.sortBy(fun x -> x.ToLower())
-            for package in normalPackages do
-                publishPackage (getBuildParamOrDefault "nugetpublishurl" "") (getBuildParam "nugetkey") 3 package
-
-        if shouldPushSymbolsPackages then
-            let symbolPackages= !! (nugetDir @@ "*.symbols.nupkg") |> Seq.sortBy(fun x -> x.ToLower())
-            for package in symbolPackages do
-                publishPackage (getBuildParam "symbolspublishurl") (getBuildParam "symbolskey") 3 package
-
-Target "Nuget" <| fun _ -> 
-    createNugetPackages()
-    publishNugetPackages()
-
-Target "CreateNuget" <| fun _ -> 
-    createNugetPackages()
-
-Target "PublishNuget" <| fun _ -> 
-    publishNugetPackages()
+FinalTarget "KillCreatedProcesses" (fun _ ->
+    log "Shutting down dotnet build-server"
+    let result = ExecProcess(fun info -> 
+            info.FileName <- "dotnet"
+            info.WorkingDirectory <- __SOURCE_DIRECTORY__
+            info.Arguments <- "build-server shutdown") (System.TimeSpan.FromMinutes 2.0)
+    if result <> 0 then failwithf "dotnet build-server shutdown failed"
+)
 
 //--------------------------------------------------------------------------------
 // Help 
@@ -262,81 +288,45 @@ Target "PublishNuget" <| fun _ ->
 Target "Help" <| fun _ ->
     List.iter printfn [
       "usage:"
-      "build [target]"
+      "./build.ps1 [target]"
       ""
       " Targets for building:"
-      " * Build      Builds"
-      " * Nuget      Create and optionally publish nugets packages"
-      " * RunTests   Runs tests"
-      " * All        Builds, run tests, creates and optionally publish nuget packages"
+      " * Build         Builds"
+      " * Nuget         Create and optionally publish nugets packages"
+      " * SignPackages  Signs all NuGet packages, provided that the following arguments are passed into the script: SignClientSecret={secret} and SignClientUser={username}"
+      " * RunTests      Runs tests"
+      " * All           Builds, run tests, creates and optionally publish nuget packages"
+      " * DocFx         Creates a DocFx-based website for this solution"
       ""
       " Other Targets"
       " * Help       Display this help" 
-      " * HelpNuget  Display help about creating and pushing nuget packages" 
       ""]
-
-Target "HelpNuget" <| fun _ ->
-    List.iter printfn [
-      "usage: "
-      "build Nuget [nugetkey=<key> [nugetpublishurl=<url>]] "
-      "            [symbolskey=<key> symbolspublishurl=<url>] "
-      "            [nugetprerelease=<prefix>]"
-      ""
-      "Arguments for Nuget target:"
-      "   nugetprerelease=<prefix>   Creates a pre-release package."
-      "                              The version will be version-prefix<date>"
-      "                              Example: nugetprerelease=dev =>"
-      "                                       0.6.3-dev1408191917"
-      ""
-      "In order to publish a nuget package, keys must be specified."
-      "If a key is not specified the nuget packages will only be created on disk"
-      "After a build you can find them in bin/nuget"
-      ""
-      "For pushing nuget packages to nuget.org and symbols to symbolsource.org"
-      "you need to specify nugetkey=<key>"
-      "   build Nuget nugetKey=<key for nuget.org>"
-      ""
-      "For pushing the ordinary nuget packages to another place than nuget.org specify the url"
-      "  nugetkey=<key>  nugetpublishurl=<url>  "
-      ""
-      "For pushing symbols packages specify:"
-      "  symbolskey=<key>  symbolspublishurl=<url> "
-      ""
-      "Examples:"
-      "  build Nuget                      Build nuget packages to the bin/nuget folder"
-      ""
-      "  build Nuget nugetprerelease=dev  Build pre-release nuget packages"
-      ""
-      "  build Nuget nugetkey=123         Build and publish to nuget.org and symbolsource.org"
-      ""
-      "  build Nuget nugetprerelease=dev nugetkey=123 nugetpublishurl=http://abc"
-      "              symbolskey=456 symbolspublishurl=http://xyz"
-      "                                   Build and publish pre-release nuget packages to http://abc"
-      "                                   and symbols packages to http://xyz"
-      ""]
-
 
 //--------------------------------------------------------------------------------
 //  Target dependencies
 //--------------------------------------------------------------------------------
 
+Target "BuildRelease" DoNothing
 Target "All" DoNothing
+Target "Nuget" DoNothing
 
 // build dependencies
-"Clean" ==>  "RestorePackages" ==> "Build" ==> "CopyOutput" ==> "BuildRelease"
+"Clean" ==> "RestorePackages" ==> "AssemblyInfo" ==> "Build" ==> "BuildRelease"
 
 // tests dependencies
-"CleanTests" ==> "RunTests"
-
-// NBench dependencies
-"CleanPerf" ==> "NBench"
+"Clean" ==> "RestorePackages" ==> "Build" ==> "RunTests"
 
 // nuget dependencies
+"Clean" ==> "RestorePackages" ==> "Build" ==> "CreateNuget"
+"CreateNuget" ==> "SignPackages" ==> "PublishNuget" ==> "Nuget"
 
+// docs
+"Clean" ==> "RestorePackages" ==> "BuildRelease" ==> "Docfx"
+
+// all
 "BuildRelease" ==> "All"
 "RunTests" ==> "All"
 "NBench" ==> "All"
 "Nuget" ==> "All"
-
 
 RunTargetOrDefault "Help"
