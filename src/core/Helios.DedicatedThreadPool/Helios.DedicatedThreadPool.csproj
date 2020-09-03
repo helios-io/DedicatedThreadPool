@@ -4,6 +4,6 @@
     <AssemblyTitle>Helios.DedicatedThreadPool</AssemblyTitle>
     <Description>An instanced, dedicated ThreadPool for eliminating "noisy neighbor" problems on the CLR ThreadPool</Description>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 </Project>
