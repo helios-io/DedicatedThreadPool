@@ -21,9 +21,9 @@ jobs:
     scriptFileName: build.cmd
     scriptArgs: all
 
-  - template: azure-pipeline.template.yaml
-    parameters:
-      name: Ubuntu
-      vmImage: 'ubuntu-16.04'
-      scriptFileName: ./build.sh
-      scriptArgs: all
+- template: azure-pipeline.template.yaml
+  parameters:
+    name: Ubuntu
+    vmImage: 'ubuntu-16.04'
+    scriptFileName: ./build.sh
+    scriptArgs: all
