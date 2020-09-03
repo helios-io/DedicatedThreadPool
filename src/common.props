@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <ProductName>Helios.DedicatedThreadPool</ProductName>
+    <Copyright>Copyright © 2015-2016 Roger Alsing, Aaron Stannard, Jeff Cyr</Copyright>
+    <Version>1.0.0.0</Version>
+    <PackageProjectUrl>https://github.com/helios-io/DedicatedThreadPool</PackageProjectUrl>
+    <PackageLicenseExpression>Apache</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/helios-io/DedicatedThreadPool</RepositoryUrl>
+  </PropertyGroup>
+</Project>
