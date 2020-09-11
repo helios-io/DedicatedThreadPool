@@ -32,30 +32,17 @@ namespace Helios.Concurrency
         /// </summary>
         public const ThreadType DefaultThreadType = ThreadType.Background;
 
-        public DedicatedThreadPoolSettings(int numThreads,
-                                           string name = null,
-                                           TimeSpan? deadlockTimeout = null,
-                                           ApartmentState apartmentState = ApartmentState.Unknown,
-                                           Action<Exception> exceptionHandler = null,
-                                           int threadMaxStackSize = 0)
-            : this(numThreads, DefaultThreadType, name, deadlockTimeout, apartmentState, exceptionHandler, threadMaxStackSize)
+        public DedicatedThreadPoolSettings(int numThreads, string name = null, TimeSpan? deadlockTimeout = null, Action<Exception> exceptionHandler = null)
+            : this(numThreads, DefaultThreadType, name, deadlockTimeout, exceptionHandler)
         { }
 
-        public DedicatedThreadPoolSettings(int numThreads,
-                                           ThreadType threadType,
-                                           string name = null,
-                                           TimeSpan? deadlockTimeout = null,
-                                           ApartmentState apartmentState = ApartmentState.Unknown,
-                                           Action<Exception> exceptionHandler = null,
-                                           int threadMaxStackSize = 0)
+        public DedicatedThreadPoolSettings(int numThreads, ThreadType threadType, string name = null, TimeSpan? deadlockTimeout = null, Action<Exception> exceptionHandler = null)
         {
             Name = name ?? ("DedicatedThreadPool-" + Guid.NewGuid());
             ThreadType = threadType;
             NumThreads = numThreads;
             DeadlockTimeout = deadlockTimeout;
-            ApartmentState = apartmentState;
             ExceptionHandler = exceptionHandler ?? (ex => { });
-            ThreadMaxStackSize = threadMaxStackSize;
 
             if (deadlockTimeout.HasValue && deadlockTimeout.Value.TotalMilliseconds <= 0)
                 throw new ArgumentOutOfRangeException("deadlockTimeout", string.Format("deadlockTimeout must be null or at least 1ms. Was {0}.", deadlockTimeout));
@@ -74,26 +61,22 @@ namespace Helios.Concurrency
         public ThreadType ThreadType { get; private set; }
 
         /// <summary>
-        /// Apartment state for threads to run in this thread pool
-        /// </summary>
-        public ApartmentState ApartmentState { get; private set; }
-
-        /// <summary>
         /// Interval to check for thread deadlocks.
-        /// 
+        ///
         /// If a thread takes longer than <see cref="DeadlockTimeout"/> it will be aborted
         /// and replaced.
         /// </summary>
         public TimeSpan? DeadlockTimeout { get; private set; }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
         public string Name { get; private set; }
 
-        public Action<Exception> ExceptionHandler { get; private set; }
-
         /// <summary>
-        /// Gets the thread stack size, 0 represents the default stack size.
+        /// TBD
         /// </summary>
-        public int ThreadMaxStackSize { get; private set; }
+        public Action<Exception> ExceptionHandler { get; private set; }
     }
 
     /// <summary>
@@ -114,11 +97,19 @@ namespace Helios.Concurrency
 
         private readonly DedicatedThreadPool _pool;
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="pool">TBD</param>
         public DedicatedThreadPoolTaskScheduler(DedicatedThreadPool pool)
         {
             _pool = pool;
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="task">TBD</param>
         protected override void QueueTask(Task task)
         {
             lock (_tasks)
@@ -129,6 +120,11 @@ namespace Helios.Concurrency
             EnsureWorkerRequested();
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="task">TBD</param>
+        /// <param name="taskWasPreviouslyQueued">TBD</param>
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             //current thread isn't running any tasks, can't execute inline
@@ -143,6 +139,11 @@ namespace Helios.Concurrency
             return TryExecuteTask(task);
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="task">TBD</param>
+        /// <returns>TBD</returns>
         protected override bool TryDequeue(Task task)
         {
             lock (_tasks) return _tasks.Remove(task);
@@ -157,6 +158,13 @@ namespace Helios.Concurrency
             get { return _pool.Settings.NumThreads; }
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <exception cref="NotSupportedException">
+        /// This exception is thrown if can't ensure a thread-safe return of the list of tasks.
+        /// </exception>
+        /// <returns>TBD</returns>
         protected override IEnumerable<Task> GetScheduledTasks()
         {
             var lockTaken = false;
@@ -211,7 +219,7 @@ namespace Helios.Concurrency
                 _currentThreadIsRunningTasks = true;
                 try
                 {
-                    // Process all available items in the queue. 
+                    // Process all available items in the queue.
                     while (true)
                     {
                         Task item;
@@ -229,11 +237,11 @@ namespace Helios.Concurrency
                             _tasks.RemoveFirst();
                         }
 
-                        // Execute the task we pulled out of the queue 
+                        // Execute the task we pulled out of the queue
                         TryExecuteTask(item);
                     }
                 }
-                // We're done processing items on the current thread 
+                // We're done processing items on the current thread
                 finally { _currentThreadIsRunningTasks = false; }
             });
         }
@@ -246,6 +254,10 @@ namespace Helios.Concurrency
     /// </summary>
     internal sealed class DedicatedThreadPool : IDisposable
     {
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="settings">TBD</param>
         public DedicatedThreadPool(DedicatedThreadPoolSettings settings)
         {
             _workQueue = new ThreadPoolWorkQueue();
@@ -258,35 +270,55 @@ namespace Helios.Concurrency
             // try to keep {settings.NumThreads} active threads.
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
         public DedicatedThreadPoolSettings Settings { get; private set; }
 
         private readonly ThreadPoolWorkQueue _workQueue;
         private readonly PoolWorker[] _workers;
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// This exception is thrown if the given <paramref name="work"/> item is undefined.
+        /// </exception>
+        /// <returns>TBD</returns>
         public bool QueueUserWorkItem(Action work)
         {
             if (work == null)
-                throw new ArgumentNullException("work");
+                throw new ArgumentNullException(nameof(work), "Work item cannot be null.");
 
             return _workQueue.TryAdd(work);
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
         public void Dispose()
         {
             _workQueue.CompleteAdding();
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
         public void WaitForThreadsExit()
         {
             WaitForThreadsExit(Timeout.InfiniteTimeSpan);
         }
 
+        /// <summary>
+        /// TBD
+        /// </summary>
+        /// <param name="timeout">TBD</param>
         public void WaitForThreadsExit(TimeSpan timeout)
         {
             Task.WaitAll(_workers.Select(worker => worker.ThreadExit).ToArray(), timeout);
         }
 
-        #region Pool worker implementation
+#region Pool worker implementation
 
         private class PoolWorker
         {
@@ -304,15 +336,13 @@ namespace Helios.Concurrency
                 _pool = pool;
                 _threadExit = new TaskCompletionSource<object>();
 
-                var thread = new Thread(RunThread, pool.Settings.ThreadMaxStackSize);
-
-                thread.IsBackground = pool.Settings.ThreadType == ThreadType.Background;
+                var thread = new Thread(RunThread)
+                {
+                    IsBackground = pool.Settings.ThreadType == ThreadType.Background,
+                };
 
                 if (pool.Settings.Name != null)
                     thread.Name = string.Format("{0}_{1}", pool.Settings.Name, workerId);
-
-                if (pool.Settings.ApartmentState != ApartmentState.Unknown)
-                    thread.SetApartmentState(pool.Settings.ApartmentState);
 
                 thread.Start();
             }
@@ -340,9 +370,9 @@ namespace Helios.Concurrency
             }
         }
 
-        #endregion
+#endregion
 
-        #region WorkQueue implementation
+#region WorkQueue implementation
 
         private class ThreadPoolWorkQueue
         {
@@ -361,8 +391,8 @@ namespace Helios.Concurrency
 
             public bool TryAdd(Action work)
             {
-                // If TryAdd returns true, it's garanteed the work item will be executed.
-                // If it returns false, it's also garanteed the work item won't be executed.
+                // If TryAdd returns true, it's guaranteed the work item will be executed.
+                // If it returns false, it's also guaranteed the work item won't be executed.
 
                 if (IsAddingCompleted)
                     return false;
@@ -427,7 +457,7 @@ namespace Helios.Concurrency
             {
                 // There is a double counter here (_outstandingRequest and _semaphore)
                 // Unfair semaphore does not support value bigger than short.MaxValue,
-                // tring to Release more than short.MaxValue could fail miserably.
+                // trying to Release more than short.MaxValue could fail miserably.
 
                 // The _outstandingRequest counter ensure that we only request a
                 // maximum of {ProcessorCount} to the semaphore.
@@ -466,9 +496,9 @@ namespace Helios.Concurrency
             }
         }
 
-        #endregion
+#endregion
 
-        #region UnfairSemaphore implementation
+#region UnfairSemaphore implementation
 
         // This class has been translated from:
         // https://github.com/dotnet/coreclr/blob/97433b9d153843492008652ff6b7c3bf4d9ff31c/src/vm/win32threadpool.h#L124
@@ -485,7 +515,9 @@ namespace Helios.Concurrency
         {
             public const int MaxWorker = 0x7FFF;
 
-            // We track everything we care about in A 64-bit struct to allow us to 
+            private static readonly int ProcessorCount = Environment.ProcessorCount;
+
+            // We track everything we care about in a single 64-bit struct to allow us to
             // do CompareExchanges on this for atomic updates.
             [StructLayout(LayoutKind.Explicit)]
             private struct SemaphoreState
@@ -494,7 +526,7 @@ namespace Helios.Concurrency
                 [FieldOffset(0)]
                 public short Spinners;
 
-                //how much of the semaphore's count is availble to spinners?
+                //how much of the semaphore's count is available to spinners?
                 [FieldOffset(2)]
                 public short CountForSpinners;
 
@@ -557,7 +589,7 @@ namespace Helios.Concurrency
                 }
 
                 //
-                // Now we're a spinner.  
+                // Now we're a spinner.
                 //
                 int numSpins = 0;
                 const int spinLimitPerProcessor = 50;
@@ -575,7 +607,7 @@ namespace Helios.Concurrency
                     }
                     else
                     {
-                        double spinnersPerProcessor = (double)currentCounts.Spinners / Environment.ProcessorCount;
+                        double spinnersPerProcessor = (double)currentCounts.Spinners / ProcessorCount;
                         int spinLimit = (int)((spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
                         if (numSpins >= spinLimit)
                         {
@@ -693,6 +725,6 @@ namespace Helios.Concurrency
             }
         }
 
-        #endregion
+#endregion
     }
 }
