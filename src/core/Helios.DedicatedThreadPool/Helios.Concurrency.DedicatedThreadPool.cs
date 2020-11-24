@@ -304,18 +304,18 @@ namespace Helios.Concurrency
         /// <summary>
         /// TBD
         /// </summary>
-        public void WaitForThreadsExit()
+        public async Task WaitForThreadsExit()
         {
-            WaitForThreadsExit(Timeout.InfiniteTimeSpan);
+            await WaitForThreadsExit(Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>
         /// TBD
         /// </summary>
         /// <param name="timeout">TBD</param>
-        public void WaitForThreadsExit(TimeSpan timeout)
+        public async Task WaitForThreadsExit(TimeSpan timeout)
         {
-            Task.WaitAll(_workers.Select(worker => worker.ThreadExit).ToArray(), timeout);
+            await Task.WhenAll(_workers.Select(worker => worker.ThreadExit));
         }
 
 #region Pool worker implementation
