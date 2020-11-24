@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30717.126
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool", "core\Helios.DedicatedThreadPool\Helios.DedicatedThreadPool.csproj", "{6C8F359E-E479-44D5-8FA0-02BFD38C3860}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helios.DedicatedThreadPool", "core\Helios.DedicatedThreadPool\Helios.DedicatedThreadPool.csproj", "{6C8F359E-E479-44D5-8FA0-02BFD38C3860}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.Tests", "tests\Helios.DedicatedThreadPool.Tests\Helios.DedicatedThreadPool.Tests.csproj", "{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helios.DedicatedThreadPool.Tests", "tests\Helios.DedicatedThreadPool.Tests\Helios.DedicatedThreadPool.Tests.csproj", "{BD7B3C66-14D8-4F01-AECE-F7F3F440A899}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{741F51D5-FB48-4AE3-837E-3C32FAC6584E}"
 EndProject
@@ -23,7 +23,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{39EF5B
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.Tests.Performance", "tests\Helios.DedicatedThreadPool.Tests.Performance\Helios.DedicatedThreadPool.Tests.Performance.csproj", "{428DF580-1734-4AB6-B80E-F5ABABCE61D6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helios.DedicatedThreadPool.Tests.Performance", "tests\Helios.DedicatedThreadPool.Tests.Performance\Helios.DedicatedThreadPool.Tests.Performance.csproj", "{428DF580-1734-4AB6-B80E-F5ABABCE61D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.IdleCpu.Program", "tests\Helios.DedicatedThreadPool.IdleCpu.Program\Helios.DedicatedThreadPool.IdleCpu.Program.csproj", "{876973A9-060F-402E-9434-733F8320AA6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,6 +45,10 @@ Global
 		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{428DF580-1734-4AB6-B80E-F5ABABCE61D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{876973A9-060F-402E-9434-733F8320AA6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{876973A9-060F-402E-9434-733F8320AA6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{876973A9-060F-402E-9434-733F8320AA6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{876973A9-060F-402E-9434-733F8320AA6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -51,5 +57,9 @@ Global
 		{6C8F359E-E479-44D5-8FA0-02BFD38C3860} = {E86B275F-E912-47C5-8F5E-BA62D5959EBD}
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 		{428DF580-1734-4AB6-B80E-F5ABABCE61D6} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
+		{876973A9-060F-402E-9434-733F8320AA6B} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DD52A4C9-1308-4946-82E0-9AD4884CAA85}
 	EndGlobalSection
 EndGlobal
