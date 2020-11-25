@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Helios.DedicatedThreadPool.IdleCpu.Program": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

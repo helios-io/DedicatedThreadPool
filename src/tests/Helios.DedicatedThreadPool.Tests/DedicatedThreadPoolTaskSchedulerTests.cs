@@ -3,11 +3,10 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
+using Xunit;
 
 namespace Helios.Concurrency.Tests
 {
-    [TestFixture]
     public class DedicatedThreadPoolTaskSchedulerTests
     {
         protected TaskScheduler Scheduler;

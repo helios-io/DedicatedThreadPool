@@ -27,6 +27,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helios.DedicatedThreadPool.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helios.DedicatedThreadPool.IdleCpu.Program", "tests\Helios.DedicatedThreadPool.IdleCpu.Program\Helios.DedicatedThreadPool.IdleCpu.Program.csproj", "{876973A9-060F-402E-9434-733F8320AA6B}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Helios.DedicatedThreadPool.IdleCpu.Tests", "tests\Helios.DedicatedThreadPool.IdleCpu.Tests\Helios.DedicatedThreadPool.IdleCpu.Tests.csproj", "{F0A0B730-337D-4FE2-AA41-54535CF70726}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,6 +51,10 @@ Global
 		{876973A9-060F-402E-9434-733F8320AA6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{876973A9-060F-402E-9434-733F8320AA6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{876973A9-060F-402E-9434-733F8320AA6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F0A0B730-337D-4FE2-AA41-54535CF70726}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F0A0B730-337D-4FE2-AA41-54535CF70726}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F0A0B730-337D-4FE2-AA41-54535CF70726}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F0A0B730-337D-4FE2-AA41-54535CF70726}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -58,6 +64,7 @@ Global
 		{BD7B3C66-14D8-4F01-AECE-F7F3F440A899} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 		{428DF580-1734-4AB6-B80E-F5ABABCE61D6} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 		{876973A9-060F-402E-9434-733F8320AA6B} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
+		{F0A0B730-337D-4FE2-AA41-54535CF70726} = {741F51D5-FB48-4AE3-837E-3C32FAC6584E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DD52A4C9-1308-4946-82E0-9AD4884CAA85}
