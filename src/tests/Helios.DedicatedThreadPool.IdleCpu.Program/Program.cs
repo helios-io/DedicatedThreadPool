@@ -16,7 +16,8 @@ namespace Helios.DedicatedThreadPool.IdleCpu.Program
             var settings = new DedicatedThreadPoolSettings(maxThreads);
             var threadPool = new Concurrency.DedicatedThreadPool(settings);
 
-            await threadPool.WaitForThreadsExit();
+            // force background Helios threads to run
+            await Task.Delay(TimeSpan.FromMinutes(2)); 
         }
     }
 }
