@@ -10,13 +10,13 @@ open Fake.DotNetCli
 open Fake.DocFxHelper
 
 // Information about the project for Nuget and Assembly info files
-let product = "Akka.Streams.Kafka"
+let product = "Helios.DedicatedThreadPool"
 let configuration = "Release"
 
 // Metadata used when signing packages and DLLs
-let signingName = "Akka.Streams.Kafka"
-let signingDescription = "Apache Kafka adapter for Akka.NET Streams"
-let signingUrl = "https://github.com/akkadotnet/Akka.Streams.Kafka"
+let signingName = "Helios.DedicatedThreadPool"
+let signingDescription = "Stand-alone .NET Threadpool"
+let signingUrl = "https://github.com/helios-io/DedicatedThreadPool"
 
 // Read release notes and version
 let codeDirectory = __SOURCE_DIRECTORY__ @@ "src"
@@ -24,21 +24,25 @@ let solutionFile = FindFirstMatchingFile "*.sln" codeDirectory  // dynamically l
 let buildNumber = environVarOrDefault "BUILD_NUMBER" "0"
 let hasTeamCity = (not (buildNumber = "0")) // check if we have the TeamCity environment variable for build # set
 let preReleaseVersionSuffix = "beta" + (if (not (buildNumber = "0")) then (buildNumber) else DateTime.UtcNow.Ticks.ToString())
+let versionSuffix = 
+    match (getBuildParam "nugetprerelease") with
+    | "dev" -> preReleaseVersionSuffix
+    | "" -> ""
+    | str -> str
 
 let releaseNotes =
     File.ReadLines (__SOURCE_DIRECTORY__ @@ "RELEASE_NOTES.md")
     |> ReleaseNotesHelper.parseReleaseNotes
 
+let dockerTagVersion = 
+    match versionSuffix with
+    | "" -> releaseNotes.AssemblyVersion
+    | str -> releaseNotes.AssemblyVersion + "-" + versionSuffix
+
 let versionFromReleaseNotes =
     match releaseNotes.SemVer.PreRelease with
     | Some r -> r.Origin
     | None -> ""
-
-let versionSuffix = 
-    match (getBuildParam "nugetprerelease") with
-    | "dev" -> preReleaseVersionSuffix
-    | "" -> versionFromReleaseNotes
-    | str -> str
 
 // Directories
 let toolsDir = __SOURCE_DIRECTORY__ @@ "tools"
@@ -253,6 +257,92 @@ Target "PublishNuget" (fun _ ->
 )
 
 //--------------------------------------------------------------------------------
+// Docker images
+//--------------------------------------------------------------------------------  
+let GetDockerProjects =
+    let dockerFiles = !! "src/**/Dockerfile" // folders with Dockerfiles in it
+       
+    let projects = dockerFiles 
+                    |> Seq.map (fun dFile -> Path.GetDirectoryName(dFile)) 
+                    |> Seq.map (fun folder -> !! (folder + "/*.csproj"))
+                    |> Seq.concat
+
+    projects
+
+Target "PublishCode" (fun _ ->    
+    ActivateFinalTarget "KillCreatedProcesses"
+    let projects = GetDockerProjects
+            
+    let runSingleProject project =
+        DotNetCli.Publish
+            (fun p -> 
+                { p with
+                    Project = project
+                    Configuration = configuration
+                    })
+
+    projects|> Seq.iter (runSingleProject)
+)
+
+let mapDockerImageName (projectName:string) =
+    match projectName with
+    | str -> Some(str.ToLowerInvariant())
+
+Target "BuildDockerImages" (fun _ ->
+    let projects = GetDockerProjects
+
+    let remoteRegistryUrl = getBuildParamOrDefault "remoteRegistry" ""
+
+    let composedGetFileNameWithoutExtension (p:string) =
+        System.IO.Path.GetFileNameWithoutExtension p
+
+    let buildDockerImage imageName projectPath =
+            
+        let args = 
+            if(hasBuildParam "remoteRegistry") then
+                StringBuilder()
+                    |> append "build"
+                    |> append "-t"
+                    |> append (imageName + ":" + dockerTagVersion) 
+                    |> append "-t"
+                    |> append (imageName + ":latest") 
+                    |> append "-t"
+                    |> append (remoteRegistryUrl + "/" + imageName + ":" + dockerTagVersion) 
+                    |> append "-t"
+                    |> append (remoteRegistryUrl + "/" + imageName + ":latest") 
+                    |> append "."
+                    |> toText
+            else
+                StringBuilder()
+                    |> append "build"
+                    |> append "-t"
+                    |> append (imageName + ":" + dockerTagVersion) 
+                    |> append "-t"
+                    |> append (imageName + ":latest") 
+                    |> append "."
+                    |> toText
+
+        let composedGetDirName (p:string) =
+            System.IO.Path.GetDirectoryName p
+
+
+        ExecProcess(fun info -> 
+                info.FileName <- "docker"
+                info.WorkingDirectory <- composedGetDirName projectPath
+                info.Arguments <- args) (System.TimeSpan.FromMinutes 5.0) (* Reasonably long-running task. *)
+
+    let runSingleProject project =
+        let projectName = composedGetFileNameWithoutExtension project
+        let imageName = mapDockerImageName projectName
+        let result = match imageName with
+                        | None -> 0
+                        | Some(name) -> buildDockerImage name project
+        if result <> 0 then failwithf "docker build failed. %s" project
+
+    projects |> Seq.iter (runSingleProject)
+)
+
+//--------------------------------------------------------------------------------
 // Documentation 
 //--------------------------------------------------------------------------------  
 Target "DocFx" (fun _ ->
@@ -308,6 +398,7 @@ Target "Help" <| fun _ ->
 
 Target "BuildRelease" DoNothing
 Target "All" DoNothing
+Target "Docker" DoNothing
 Target "Nuget" DoNothing
 
 // build dependencies
@@ -322,6 +413,9 @@ Target "Nuget" DoNothing
 
 // docs
 "Clean" ==> "RestorePackages" ==> "BuildRelease" ==> "Docfx"
+
+// Docker
+"BuildRelease" ==> "PublishCode" ==> "BuildDockerImages" ==> "Docker"
 
 // all
 "BuildRelease" ==> "All"

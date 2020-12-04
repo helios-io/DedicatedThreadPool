@@ -3,14 +3,13 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
+using Xunit;
 
 namespace Helios.Concurrency.Tests
 {
-    [TestFixture]
     public class DedicatedThreadPoolTests
     {
-        [Test(Description = "Simple test to ensure that the entire thread pool doesn't just crater")]
+        [Fact()]
         public void Should_process_multithreaded_workload()
         {
             var atomicCounter = new AtomicCounter(0);
@@ -22,10 +21,10 @@ namespace Helios.Concurrency.Tests
                 }
                 SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
             }
-            Assert.Pass(string.Format("Passed! Final counter value: {0} / Expected {1}", atomicCounter.Current, 1000));
+            Assert.True(true, $"Passed! Final counter value: {atomicCounter.Current} / Expected {1000}");
         }
 
-        [Test(Description = "Ensure that the number of threads running in the pool concurrently equal is AtMost equal to the DedicatedThreadPoolSettings.NumThreads property")]
+        [Fact(DisplayName = "Ensure that the number of threads running in the pool concurrently equal is AtMost equal to the DedicatedThreadPoolSettings.NumThreads property")]
         public void Should_process_workload_across_AtMost_DedicatedThreadPoolSettings_NumThreads()
         {
             var numThreads = Environment.ProcessorCount;
@@ -49,7 +48,7 @@ namespace Helios.Concurrency.Tests
             Assert.True(threadIds.Distinct().Count() <= numThreads);
         }
 
-        [Test(Description = "Have a user-defined method that throws an exception? The world should not end.")]
+        [Fact(DisplayName = "Have a user-defined method that throws an exception? The world should not end.")]
         public void World_should_not_end_if_exception_thrown_in_user_callback()
         {
             var numThreads = 3;
@@ -73,7 +72,7 @@ namespace Helios.Concurrency.Tests
                 }
 
                 //sanity check
-                Assert.AreEqual(numThreads, threadIds.Distinct().Count());
+                Assert.Equal(numThreads, threadIds.Distinct().Count());
 
                 //run the job again. Should get the same thread IDs as before
                 for (var i = 0; i < numThreads*10; i++)
@@ -84,7 +83,7 @@ namespace Helios.Concurrency.Tests
             }
 
             // half of thread IDs should belong to failed threads, other half to successful ones
-            Assert.AreEqual(numThreads, threadIds.Distinct().Count());
+            Assert.Equal(numThreads, threadIds.Distinct().Count());
         }
     }
 }

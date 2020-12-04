@@ -2,5 +2,4 @@
 
 [assembly: InternalsVisibleTo("Helios.DedicatedThreadPool.Tests")]
 [assembly: InternalsVisibleTo("Helios.DedicatedThreadPool.Tests.Performance")]
-[assembly: InternalsVisibleTo("Helios.DedicatedThreadPool.VsThreadpoolBenchmark")]
-[assembly: InternalsVisibleTo("Helios.DedicatedThreadPool.VsDedicatedThreadFiber")]
+[assembly: InternalsVisibleTo("Helios.DedicatedThreadPool.IdleCpu.Program")]

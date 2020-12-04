@@ -3,33 +3,25 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
+using Xunit;
 
 namespace Helios.Concurrency.Tests
 {
-    [TestFixture]
-    public class DedicatedThreadPoolTaskSchedulerTests
+    public class DedicatedThreadPoolTaskSchedulerTests : IDisposable
     {
         protected TaskScheduler Scheduler;
         protected TaskFactory Factory;
         private DedicatedThreadPool Pool;
 
-        [SetUp]
-        public void SetUp()
+        public DedicatedThreadPoolTaskSchedulerTests()
         {
             Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
             Scheduler = new DedicatedThreadPoolTaskScheduler(Pool);
             Factory = new TaskFactory(Scheduler);
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            Pool.Dispose();
-        }
-
-        [Test(Description = "Shouldn't immediately try to schedule all threads for task execution")]
-        [Ignore("Totally unpredictable on low powered machines")]
+        // "Shouldn't immediately try to schedule all threads for task execution"
+        [Fact(Skip = "Totally unpredictable on low powered machines")]
         public void Should_only_use_one_thread_for_single_task_request()
         {
             var allThreadIds = new ConcurrentBag<int>();
@@ -51,10 +43,11 @@ namespace Helios.Concurrency.Tests
 
             task.Wait();
 
-            Assert.AreEqual(Pool.Settings.NumThreads, allThreadIds.Count);
+            Assert.Equal(Pool.Settings.NumThreads, allThreadIds.Count);
         }
 
-        [Test(Description = "Should be able to utilize the entire DedicatedThreadPool for queuing tasks")]
+        // "Should be able to utilize the entire DedicatedThreadPool for queuing tasks"
+        [Fact]
         public void Should_use_all_threads_for_many_tasks()
         {
             var threadIds = new ConcurrentBag<int>();
@@ -73,6 +66,11 @@ namespace Helios.Concurrency.Tests
             SpinWait.SpinUntil(() => atomicCounter.Current == 1000, TimeSpan.FromSeconds(1));
 
             Assert.True(threadIds.Distinct().Count() <= Pool.Settings.NumThreads);
+        }
+
+        public void Dispose()
+        {
+            Pool?.Dispose();
         }
     }
 }
