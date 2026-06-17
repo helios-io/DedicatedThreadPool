@@ -286,16 +286,16 @@ Establishes the comparison rig and targets the gated Phase 3 core will be judged
 *Source: phase3-prep after-action postmortem (`.ralph/runs/phase3-prep/postmortem.md`). No NOW
 fix-it was required (overall verdict PARTIAL, driven by process/auditability gaps, not code defects).*
 
-- [ ] **C6-1** `[LOOP-OK]` Bound the benchmark's `done.Wait()`. The per-invocation drain in
+- [x] **C6-1** `[LOOP-OK]` Bound the benchmark's `done.Wait()`. The per-invocation drain in
       `SchedulerComparisonBenchmarks.cs` calls an **unbounded** `done.Wait()`; if a scheduler ever
       drops a work item the harness hangs forever instead of failing loud in CI. Add a timeout +
       throw on the next benchmark touch. Perf/test code only — loop-safe. *(postmortem.md)*
       **Verification:** L1 (perf: build + BDN smoke green).
-- [ ] **C6-2** `[LOOP-OK]` Restore the `Directory.Packages.props` trailing newline. `bb63a41`
+- [x] **C6-2** `[LOOP-OK]` Restore the `Directory.Packages.props` trailing newline. `bb63a41`
       stripped the final `\n` (and added incidental blank-line churn). Cosmetic hygiene; trivially
       loop-safe. *(postmortem.md)*
       **Verification:** L1 (release: build green; no behavior change).
-- [ ] **C6-3** Correct the "100000 contentions" label in memorizer `1eeb3867`. The recorded .NET TP
+- [x] **C6-3** Correct the "100000 contentions" label in memorizer `1eeb3867`. The recorded .NET TP
       contention figure equals *exactly* WorkItems (100,000) — almost certainly Interlocked/lock-release
       events mislabeled as `Monitor` contention by the BDN Threading diagnoser. Conclusion unaffected
       (PipeScheduler is the contention loser; Helios = 0); the label merely misleads. **Not `[LOOP-OK]`**

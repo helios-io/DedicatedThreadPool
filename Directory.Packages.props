@@ -8,6 +8,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
+
   <ItemGroup>
     <!-- Test stack: xUnit + VSTest adapter + coverlet. -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
@@ -18,4 +19,5 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageVersion Include="Pipelines.Sockets.Unofficial" Version="2.2.16" />
   </ItemGroup>
+
 </Project>

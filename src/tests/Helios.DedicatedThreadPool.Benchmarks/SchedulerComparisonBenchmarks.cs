@@ -17,6 +17,10 @@ public class SchedulerComparisonBenchmarks
 {
     private const int WorkItems = 100_000;
 
+    // Bound on each per-invocation drain: if a scheduler ever drops a work item the harness
+    // fails loud (in CI) instead of hanging forever (C6-1).
+    private const int DrainTimeoutMs = 30_000;
+
     // 0 = Environment.ProcessorCount (default), 2 = constrained
     [Params(0, 2)]
     public int WorkerCount;
@@ -54,7 +58,9 @@ public class SchedulerComparisonBenchmarks
                     done.Set();
             }, (object?)null, preferLocal: false);
         }
-        done.Wait();
+        if (!done.Wait(DrainTimeoutMs))
+            throw new InvalidOperationException(
+                $"Scheduler dropped work: {Volatile.Read(ref remaining)} of {WorkItems} items not completed within {DrainTimeoutMs}ms.");
     }
 
     [Benchmark]
@@ -70,7 +76,9 @@ public class SchedulerComparisonBenchmarks
                     done.Set();
             });
         }
-        done.Wait();
+        if (!done.Wait(DrainTimeoutMs))
+            throw new InvalidOperationException(
+                $"Scheduler dropped work: {Volatile.Read(ref remaining)} of {WorkItems} items not completed within {DrainTimeoutMs}ms.");
     }
 
     [Benchmark]
@@ -86,6 +94,8 @@ public class SchedulerComparisonBenchmarks
                     done.Set();
             }, null);
         }
-        done.Wait();
+        if (!done.Wait(DrainTimeoutMs))
+            throw new InvalidOperationException(
+                $"Scheduler dropped work: {Volatile.Read(ref remaining)} of {WorkItems} items not completed within {DrainTimeoutMs}ms.");
     }
 }
