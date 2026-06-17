@@ -266,6 +266,22 @@ baseline is recorded for the pre-rewrite pool.
 
 ---
 
+## Phase 3.0 — Prep (loop-safe groundwork before the gated core)  ·  MODE=perf  ·  **NOW**
+
+Establishes the comparison rig and targets the gated Phase 3 core will be judged against —
+**without** building any new pool. (Loop-safe: benchmarks only EXISTING types.)
+
+### Task P3.0.1: BenchmarkDotNet comparison harness — current pool vs .NET ThreadPool vs DedicatedThreadPoolPipeScheduler · `[LOOP-OK]`
+**Source:** Phase 3 prep + StackExchange.Redis #3060 (memorizer `eb4916e3` §4): we must "beat the lock-y 7-year-old `DedicatedThreadPoolPipeScheduler` on 2 cores."
+**Scope guardrail (READ):** Benchmark only the **three schedulers that already exist today** — the current `Helios.Concurrency.DedicatedThreadPool` (`QueueUserWorkItem`), `System.Threading.ThreadPool` (`UnsafeQueueUserWorkItem`), and `Pipelines.Sockets.Unofficial.DedicatedThreadPoolPipeScheduler` (`Schedule`). **Do NOT design, stub, or implement the new lock-free pool — that is Phase 3, `[GATED]`.** This task only stands up the measurement rig + records where the *current* landscape sits.
+**Done when:**
+- [ ] Add a BenchmarkDotNet benchmark to the existing `*.Benchmarks` project comparing the three schedulers on a small-work-item throughput workload, at the default thread count **and** a constrained (e.g. 2-thread) config. Add `Pipelines.Sockets.Unofficial` as a **benchmarks-only** PackageReference (CPM) — NOT a dependency of the shipped library.
+- [ ] `[MemoryDiagnoser]`; smoke-runs under `build.ps1 Benchmark -Smoke` (CI `--job dry`) and runs fully on the dev box.
+- [ ] Record the preliminary comparison numbers to memorizer (new record, linked to the spec) — clearly labelled preliminary per the baseline discipline in `TOOLING.md`; note this is the "landscape the rewritten pool must beat."
+**Verification:** L1 (perf: build + BDN runs; raw output read directly; recorded to memorizer).
+
+---
+
 ## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`
 
 Build the reusable core at **fixed** thread count first; prove parity before adapting.
