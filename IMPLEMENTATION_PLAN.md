@@ -9,13 +9,11 @@
 
 ---
 
-> **⚠ After-action (phase2-loop, 2026-06-17): run ended with an OPEN NOW item.**
-> The loop terminated after iter-04 (C.3, done) without executing **Task C.4** (racy
-> idle-CPU/contention harness). C.4 below is the **top-priority unresolved item** and the
-> **entry point for the next run** — pick it up first. Postmortem reproduced the flakiness
-> (idle-CPU 10.3% isolated → 15.9% under the full parallel suite; contention delta 0 → 7).
-> See `.ralph/runs/phase2-loop/postmortem.md`. C.3 is complete (verified). PARK items
-> (perf-gate; final-commit-review gap) await maintainer decision in `BACKLOG_PARKING_LOT.md`.
+> **✅ After-action resolved (phase2-c4-fix, 2026-06-17):** Task C.4 completed. PoolMeasurementTests
+> isolated via `[CollectionDefinition("MeasurementTests", DisableParallelization = true)]`; 3 deterministic
+> passes confirmed; memorizer baseline `4cedbe2f` updated to v3 with isolated reading (~14.2–14.5%).
+> C.3 was already done. PARK items (perf-gate; final-commit-review gap) await maintainer decision in
+> `BACKLOG_PARKING_LOT.md`. Phase 2 Fix-it work is complete.
 
 ---
 
@@ -59,13 +57,13 @@ margin as thin as 2.6pp below the 20% gate → nondeterministic CI failure. The 
 contention harness (`delta=0` isolated vs `delta=4` observed under the parallel scheduler tests, which
 use `lock`/`Monitor`); it doesn't fail only because it asserts nothing on the delta.
 **Done when:**
-- [ ] Make the measurement tests immune to cross-test contamination — e.g. put `PoolMeasurementTests`
+- [x] Make the measurement tests immune to cross-test contamination — e.g. put `PoolMeasurementTests`
       in its own non-parallel collection (`[CollectionDefinition(DisableParallelization = true)]`) or
       otherwise isolate the sample so concurrent test CPU/lock activity cannot inflate it.
-- [ ] Re-capture the (now isolated) idle-CPU + contention figures from raw harness output and **update**
+- [x] Re-capture the (now isolated) idle-CPU + contention figures from raw harness output and **update**
       the idle-CPU section of memorizer baseline `4cedbe2f` so it reflects the isolated measurement
       (keep the honest "process-wide, includes runner noise" caveat).
-- [ ] Idle-CPU and contention tests pass deterministically (re-run the full suite ≥3× with no failure).
+- [x] Idle-CPU and contention tests pass deterministically (re-run the full suite ≥3× with no failure).
 **Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
 
 ---
@@ -194,12 +192,11 @@ baseline is recorded for the pre-rewrite pool.
 
 ### Cleanup (non-blocking — opportunistic during a future test touch)
 
-- [ ] **C2-1** Align the skipped `Fact`'s `DisplayName` to its method intent. In
+- [x] **C2-1** Align the skipped `Fact`'s `DisplayName` to its method intent. In
       `DedicatedThreadPoolTaskSchedulerTests.cs:28-30` the `DisplayName`
       ("Shouldn't immediately try to schedule all threads") no longer matches the method
       name `Should_only_use_one_thread_for_single_task_request` — a cosmetic carryover
-      from the NUnit→xUnit migration. *(Source: postmortem phase2-loop, triage J1-2.
-      Cosmetic only; do during the C.4 work or any future test touch.)*
+      from the NUnit→xUnit migration. *(Done during C.4 work, phase2-c4-fix iter-01.)*
 
 ---
 

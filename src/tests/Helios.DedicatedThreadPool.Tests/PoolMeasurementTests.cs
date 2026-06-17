@@ -8,11 +8,17 @@ using Xunit.Abstractions;
 
 namespace Helios.Concurrency.Tests
 {
+    // Prevent parallel execution with other test classes so process-wide CPU and contention
+    // readings are not contaminated by SpinWait/lock activity in sibling test classes.
+    [CollectionDefinition("MeasurementTests", DisableParallelization = true)]
+    public class MeasurementTestsCollection { }
+
     /// <summary>
     /// Phase 2.4 measurement scaffolding: idle-CPU, Monitor contention, and metrics stubs.
     /// Documents baseline behaviour of the *current* pool. Phase 3 gates (dae34f6d) will add
     /// stricter assertions once the rewritten pool is in place.
     /// </summary>
+    [Collection("MeasurementTests")]
     public sealed class PoolMeasurementTests
     {
         private readonly ITestOutputHelper _output;

@@ -25,7 +25,7 @@ namespace Helios.Concurrency.Tests
             Pool.Dispose();
         }
 
-        [Fact(DisplayName = "Shouldn't immediately try to schedule all threads for task execution",
+        [Fact(DisplayName = "Should only use one thread for a single task request",
               Skip = "Totally unpredictable on low powered machines")]
         public async Task Should_only_use_one_thread_for_single_task_request()
         {
