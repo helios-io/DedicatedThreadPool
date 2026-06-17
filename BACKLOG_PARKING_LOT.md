@@ -60,6 +60,13 @@
 - **Date parked:** 2026-06-17
 
 ### Idle-CPU assertion rests on a fragile process-wide gauge (measurement methodology)
+- **⚠ MATERIALIZED 2026-06-17 on PR #3 CI** (exactly as predicted): `IdlePool_CpuUsage_IsNearZero`
+  failed on both ubuntu-latest and windows-latest (process overhead ÷ few cores exceeds `< 0.20`).
+  **Interim resolution (maintainer chose, option A):** scoped the two process-wide measurement smokes
+  (idle-CPU + contention) `[Trait("Category","Measurement")]` and excluded them from CI
+  (`TEST_FILTER='Category!=Measurement'`); they still run locally. **This PARK stays OPEN** for the
+  robust methodology (option b — per-thread `ProcessThread.TotalProcessorTime` / calibrated threshold),
+  to be decided when the **Phase 3 [GATED]** idle-CPU gate is wired.
 - **Source:** RALPH run phase2-c4-fix, after-action adversarial review (postmortem), Finding #2
 - **Issue:** `IdlePool_CpuUsage_IsNearZero` asserts `Environment.CpuUsage` (a **process-wide**
   gauge) is `< 0.20` of one core over a 2 s window. The C.4 `DisableParallelization` fix makes

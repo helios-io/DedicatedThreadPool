@@ -62,10 +62,15 @@ function Target-Build {
 
 function Target-Test {
     Target-Build
+    # Optional category filter. CI sets TEST_FILTER='Category!=Measurement' to skip the local-only,
+    # process-wide measurement smokes (idle-CPU / contention) that are flaky on shared/constrained CI
+    # runners. Unset locally => run everything (the smokes are useful on a real dev box).
+    $filterArgs = @()
+    if ($env:TEST_FILTER) { $filterArgs = @('--filter', $env:TEST_FILTER) }
     Invoke-Dotnet test $Solution -c $Configuration --no-build `
         --logger 'trx' --logger 'console;verbosity=normal' `
         --results-directory $TestResults `
-        --collect 'XPlat Code Coverage' --settings $RunSettings
+        --collect 'XPlat Code Coverage' --settings $RunSettings @filterArgs
 }
 
 function Target-Pack {

@@ -29,6 +29,11 @@ namespace Helios.Concurrency.Tests
         // 1. Idle-CPU harness  (Environment.CpuUsage / Fix-it C.2)
         // -----------------------------------------------------------------
 
+        // Category=Measurement: process-wide Environment.CpuUsage gauge — a LOCAL CI-box shakeout
+        // smoke, NOT a portable gate (process overhead on a shared/2-core CI runner exceeds the
+        // threshold). Excluded from CI via TEST_FILTER='Category!=Measurement'; still runs locally.
+        // The real idle-CPU acceptance gate is Phase 3 [GATED] (per-thread measurement, real hardware).
+        [Trait("Category", "Measurement")]
         [Fact(DisplayName = "Idle pool has near-zero CPU usage (Environment.CpuUsage harness)")]
         public void IdlePool_CpuUsage_IsNearZero()
         {
@@ -67,6 +72,8 @@ namespace Helios.Concurrency.Tests
         // 2. Monitor.LockContentionCount harness
         // -----------------------------------------------------------------
 
+        // Category=Measurement: process-wide Monitor.LockContentionCount — local CI-box smoke (see above).
+        [Trait("Category", "Measurement")]
         [Fact(DisplayName = "Monitor contention under pool load is documented (current pool baseline)")]
         public void Pool_MonitorContention_UnderLoad_IsDocumented()
         {
