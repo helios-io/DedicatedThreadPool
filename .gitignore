@@ -203,7 +203,7 @@ tools/
 build/
 .nuget/
 .dotnet/
-.idea.ralph/
+.idea/
 .planning/
 .code-health/
 .claude/settings.local.json
