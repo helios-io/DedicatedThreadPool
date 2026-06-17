@@ -203,4 +203,8 @@ tools/
 build/
 .nuget/
 .dotnet/
-.idea
+.idea.ralph/
+.planning/
+.code-health/
+.claude/settings.local.json
+.claude/skills/ralph-*

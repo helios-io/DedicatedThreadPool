@@ -17,6 +17,25 @@ without a modern benchmark harness and a recorded baseline.
 
 ---
 
+## 🔒 Autonomous loop (RALPH) scope — READ FIRST
+
+Tasks are `- [ ] **N.M**` checkboxes; each phase's `**DoD:**` line is its done-when.
+
+Autonomous iterations (`ralph.sh`) are authorized **only** for tasks tagged
+**`[LOOP-OK]`** (currently **2.2, 2.3, 2.4**). **Everything tagged `[GATED]` — all of
+Phase 3 onward — is off-limits to the loop:** it's lock-free concurrency with silent,
+hardware-dependent failure modes (seq-cst fences, parking, hill-climbing) whose
+acceptance gates this CI box **cannot** validate (no ARM64; no governor control;
+`perf_event_paranoid=4`).
+
+**Loop rule:** work the first unchecked `[LOOP-OK]` task. If the next unchecked task is
+`[GATED]` — or only `[GATED]` tasks remain — **STOP**: write the iter-log explaining the
+gate, make **no** changes, do not commit, and exit. Never start, scaffold, or "partially"
+do a `[GATED]` task. Never disable/weaken a test or suppress a warning to reach green.
+Human review on real hardware unlocks `[GATED]` work.
+
+---
+
 ## Phase 0 — Agent OS bootstrap  ·  MODE=release  ·  **NOW**
 
 - [x] `PROJECT_CONTEXT.md`, `TOOLING.md`, `AGENTS.md`, `CLAUDE.md`, this plan.
@@ -62,19 +81,26 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
 - [x] **2.1** Migrate the test project NUnit → **xUnit** (keep all existing assertions);
       target a runner that exercises the library compiled for `net10.0`.
       *(Done: xUnit v2 + VSTest + coverlet; 4 pass / 1 skip, 0 warnings on net10.0.)*
-- [ ] **2.2** Replace the NBench perf project with a **BenchmarkDotNet** project
+- [ ] **2.2** `[LOOP-OK]` Replace the NBench perf project with a **BenchmarkDotNet** project
       (`*.Benchmarks`). Port the existing throughput benchmark (Helios pool vs
       `System.Threading.ThreadPool`).
-- [ ] **2.3** Capture and record a **baseline** of the *current* pool (throughput, alloc,
-      park/wake) on a documented machine, following memorizer `dae34f6d` discipline.
-      Write the baseline back to memorizer.
+- [ ] **2.3** `[LOOP-OK]` Capture a **preliminary** baseline of the *current* pool
+      (throughput, alloc, idle CPU) **on this box**, recorded to memorizer. *(The OFFICIAL
+      baseline — cooled bare-metal, `governor=performance`, ≥3 reps per `dae34f6d` — is
+      `[GATED]`; this preliminary run is for harness shakeout, clearly labelled as such.)*
+- [ ] **2.4** `[LOOP-OK]` Build the **measurement scaffolding** the Phase 3–4 gates depend on,
+      validated against the CURRENT pool: an idle-CPU harness via `Environment.CpuUsage`
+      (assert ≈0 when idle), a `Monitor.Contention`≈0 check, and EventCounters/Meters stubs
+      (active-worker / park / wake counts). Local/preliminary numbers only — governed,
+      bare-metal, and ARM64 runs are `[GATED]`.
 
-**DoD:** xUnit suite green; BenchmarkDotNet runs locally and in CI (smoke); a recorded,
-reproducible baseline exists for the pre-rewrite pool.
+**DoD:** xUnit suite green; BenchmarkDotNet runs locally and in CI (smoke); idle-CPU +
+contention harness compile and pass against the current pool; a preliminary, reproducible
+baseline is recorded for the pre-rewrite pool.
 
 ---
 
-## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT (gated on 1–2)**
+## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`
 
 Build the reusable core at **fixed** thread count first; prove parity before adapting.
 
@@ -102,7 +128,7 @@ ordering, dispose/drain; racy review via `analyze-racy-test`); microbench parity
 
 ---
 
-## Phase 4 — Hill-climbing controller **+ starvation injector** (spec P2)  ·  MODE=engineering/perf  ·  **NEXT (gated on 3)**
+## Phase 4 — Hill-climbing controller **+ starvation injector** (spec P2)  ·  MODE=engineering/perf  ·  **NEXT** · `[GATED]`
 
 Two cooperating control loops — the throughput controller alone **cannot** react to blocking
 (a blocked worker reports zero completions, so it would *remove* threads when it should add).
@@ -124,7 +150,7 @@ vs Phase 3.
 
 ---
 
-## Phase 5 — Framework-agnostic adapters  ·  MODE=engineering  ·  **LATER**
+## Phase 5 — Framework-agnostic adapters  ·  MODE=engineering  ·  **LATER** · `[GATED]`
 
 - [ ] **5.1** Modernize `DedicatedThreadPoolTaskScheduler` over the new core.
 - [ ] **5.2** Add a `SynchronizationContext` adapter.
@@ -136,7 +162,7 @@ vs Phase 3.
 
 ---
 
-## Phase 6 — Release  ·  MODE=release  ·  **LATER**
+## Phase 6 — Release  ·  MODE=release  ·  **LATER** · `[GATED]`
 
 - [ ] **6.1** Update `README.md` (new capabilities, benchmarks) and `RELEASE_NOTES.md`.
 - [ ] **6.2** Decide version bump (likely `1.0.0` given the rewrite) and namespace/notes.
