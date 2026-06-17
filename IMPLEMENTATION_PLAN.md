@@ -59,8 +59,9 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
 
 ## Phase 2 — Test + benchmark stack migration & baseline  ·  MODE=engineering/perf  ·  **NEXT**
 
-- [ ] **2.1** Migrate the test project NUnit → **xUnit** (keep all existing assertions);
+- [x] **2.1** Migrate the test project NUnit → **xUnit** (keep all existing assertions);
       target a runner that exercises the library compiled for `net10.0`.
+      *(Done: xUnit v2 + VSTest + coverlet; 4 pass / 1 skip, 0 warnings on net10.0.)*
 - [ ] **2.2** Replace the NBench perf project with a **BenchmarkDotNet** project
       (`*.Benchmarks`). Port the existing throughput benchmark (Helios pool vs
       `System.Threading.ThreadPool`).
