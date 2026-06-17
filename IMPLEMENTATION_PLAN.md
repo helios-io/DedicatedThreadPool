@@ -78,33 +78,49 @@ reproducible baseline exists for the pre-rewrite pool.
 
 Build the reusable core at **fixed** thread count first; prove parity before adapting.
 
-- [ ] **3.1** Per-worker **local LIFO deque** (Chase-Lev style) + shared **global MPMC**
-      queue; idle workers **work-steal** (steal from FIFO end). Batch-drain (K items/wake).
-- [ ] **3.2** **Efficient parking:** adaptive spin-then-park on a **LIFO** semaphore
-      (warmest thread wakes first), checking local/global/steal before parking, using
-      modern `net10.0` intrinsics directly.
-- [ ] **3.3** Optional **affinity key** on enqueue (`Schedule(work, affinityKey)`) pinning
-      related work to one warm worker; rebalance mapping when active-count changes.
-- [ ] **3.4** Microbenchmark vs `System.Threading.ThreadPool` — CPU-bound **and**
-      I/O-bound-shaped. **Must match within ~5%** before proceeding.
+- [ ] **3.1** Per-worker **lock-free Chase-Lev deque** (PPoPP'13 C11 formulation; **signed
+      `long` monotonic indices**; LIFO-pop owner / FIFO-steal thief) + lock-free **global**
+      queue. Memory ordering: `Interlocked.MemoryBarrier()` in **both** take & steal (the
+      seq-cst fence). Missed-steal → re-request a worker; GC reclaims grown buffers; batch-
+      drain per wake with the **Kestrel `IOQueue` lost-wakeup guard**.
+- [ ] **3.2** **Efficient parking (low idle CPU):** calibrated `SpinWait` (PAUSE, ~70 spins
+      x64 / ×4 ARM) checking local/global/steal, then park on a **managed LIFO blocker-stack**
+      (warmest wakes first). **Wake exactly one** per work unit; "no-spin hint"; 20s idle
+      timeout. **No `Thread.Sleep(0)` spin; no single shared `Monitor`.**
+- [ ] **3.3** **Affinity = locality hint** (per locked decision): bias a key's *initial
+      placement* to `hash(key) % workers`; the item stays steal-eligible. **No** rebalanced
+      pinning and **no** FIFO-lane layer in the core (ordering is an adapter concern).
+- [ ] **3.4** Bench/profile vs `System.Threading.ThreadPool`: CPU-bound microbench **≤5%**;
+      **idle-CPU gate** (`Environment.CpuUsage` ≈0 when idle); **`Monitor.Contention` ≈0**;
+      **2-core + cgroup-quota** small-message-storm scenario (beat `DedicatedThreadPoolPipe-
+      Scheduler`); lock-free-vs-spinlock-steal benchmark (open question).
 
-**DoD:** compiles for `net10.0` from the single source file; xUnit green (incl. exception
-isolation, ordering, dispose/drain, racy-test review via `analyze-racy-test`); microbench
-parity ≤5% recorded; no dead-end from PROJECT_CONTEXT re-introduced.
+**DoD:** compiles for `net10.0` from the single source file; xUnit green incl. **take-on-empty
+racing steal** and **fence-correctness stress tests run on ARM64** (plus exception isolation,
+ordering, dispose/drain; racy review via `analyze-racy-test`); microbench parity ≤5% + idle-CPU
++ `Monitor.Contention`≈0 recorded; no dead-end from PROJECT_CONTEXT re-introduced.
 
 ---
 
-## Phase 4 — HillClimbingController (spec P2)  ·  MODE=engineering/perf  ·  **NEXT (gated on 3)**
+## Phase 4 — Hill-climbing controller **+ starvation injector** (spec P2)  ·  MODE=engineering/perf  ·  **NEXT (gated on 3)**
 
-- [ ] **4.1** Port/adapt the runtime `HillClimbing.cs` algorithm (sinusoidal wave →
-      throughput-gradient estimate → move active count; clamp Δ/sample). Params per spec §6.3.
-- [ ] **4.2** Blocking-detection injection path (inject on starvation when workers park
-      on I/O), bounded by `min`/`max` thread caps.
-- [ ] **4.3** Validate **convergence** (≤~2s to optimal active count after a load step)
-      and **microbench parity** within ~5% of .NET TP (acceptance gate **G8**).
+Two cooperating control loops — the throughput controller alone **cannot** react to blocking
+(a blocked worker reports zero completions, so it would *remove* threads when it should add).
 
-**DoD:** convergence + parity demonstrated and recorded; configurable via settings; no
-busy-spin waste and no slow park/wake regressions vs Phase 3.
+- [ ] **4.1** Port the runtime `HillClimbing.cs` algorithm **per-instance** (square-wave probe
+      + Goertzel transfer-function gradient + confidence/SNR + `pow(move,2)` gain; randomized
+      10–200ms sample interval). Params per the digest (`eb4916e3`) / spec §6.3.
+- [ ] **4.2** **Separate starvation/blocking injector** (GateThread, ~500ms; owns cold-start
+      ramp): inject on queue-non-drainage + blocked-thread count, CPU-aware. Expose
+      `NotifyBlocked/Unblocked` hooks (**defer** the full cooperative-blocking ramp). Cap by
+      `min`/`max` **and cgroup CPU quota**. Parked ≠ blocked; stamp `lastDequeue` on steals.
+- [ ] **4.3** Validate **convergence ≤~2s** after a load step (step-response harness, **up
+      1→C and down C→1**, anti-oscillation stddev ≤~1) and **microbench parity** ≤5% of .NET
+      TP (acceptance gate **G8**).
+
+**DoD:** convergence (up + down) + parity + anti-oscillation demonstrated and recorded;
+configurable via settings; cgroup-quota-aware; no busy-spin waste and no park/wake regression
+vs Phase 3.
 
 ---
 

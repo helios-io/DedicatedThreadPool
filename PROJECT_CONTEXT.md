@@ -82,6 +82,22 @@ To de-risk the rewrite, the library targets **`net10.0` only for now**;
 guards around those modern APIs. Keep hot-path API choices loosely noted so that
 retrofit stays mechanical if portability is reinstated.
 
+## Pool design decisions (deep-research synthesis, 2026-06-17)
+
+The pool is **four cooperating subsystems**, each with a battle-tested (but `internal`)
+`dotnet/runtime` reference we reimplement from public APIs: **cheap-waiting/parking**,
+**work-stealing deque**, **false-sharing-safe layout**, and **hill-climbing + a separate
+starvation injector**. Full implementation digest (per-primitive guidance, parameters,
+correctness traps, sources): memorizer `eb4916e3-fa71-49dd-8763-237c5a47c070`.
+
+| Decision | Choice |
+|---|---|
+| **Affinity semantics** | **Locality hint, not ordering.** One Chase-Lev deque/worker; bias a key's initial placement to `hash(key) % workers`, but the item stays steal-eligible. Per-key ordering is an **adapter** concern. → hill-climbing changes the worker count freely (only new work re-hashes; in-flight work is steal-eligible), so there is **no rebalancing problem in the core**. |
+| **Runtime model to mirror** | **net10/`main`** (single-`Signal()` + managed LIFO blocker-stack), not release/8.0 (`Release(N)` + IOCP/PAL). |
+| **Blocking-awareness (v1)** | Ship the GateThread **starvation injector** + expose `NotifyBlocked/Unblocked` hooks; **defer** the full cooperative-blocking delay-stepped ramp. (A blocked worker reports zero completions, so the throughput controller alone would *remove* threads when it should add — the injector is mandatory and owns cold-start ramp.) |
+| **Windows IOCP fast-path** | **Deferred.** Managed LIFO blocker-stack is the portable baseline. |
+| **Worker-count cap** | Respect **cgroup CPU quota**, not just `Environment.ProcessorCount` (container constraint; over-threading under a quota → throttling). |
+
 ## Acceptance bar for the new pool (summary)
 
 The standalone primitive must, on a CPU-bound microbenchmark, **match the .NET
@@ -102,6 +118,9 @@ repo. Agents doing pool/perf work **must** consult it:
 - Referenced by the spec: `eb52d56b` (profiling proof), `8ce6bcc0` (condensed plan),
   `dae34f6d` (**benchmark discipline** — read before any perf claim), and rejected
   levers `73857988`, `b856f384`, `4d6e4f93`, `741216a6` (do **not** re-attempt these).
+- `eb4916e3-fa71-49dd-8763-237c5a47c070` — **implementation design digest** for the
+  standalone primitive (the four subsystems, parameters, correctness traps, the
+  StackExchange.Redis #3060 evidence, measurement methodology). Read before Phase 3/4.
 
 ## Known dead-ends (do not retry — from memorizer)
 
@@ -110,6 +129,16 @@ repo. Agents doing pool/perf work **must** consult it:
 - Do **not** over-thread (DotNetty-style) nor under-thread (starvation).
 - Outbound stream-source coalescing is dead (`4d6e4f93`); stage fusion targets the
   wrong layer (`741216a6`). (These are Akka-transport concerns, listed for completeness.)
+- **Never put a lock on the schedule/enqueue hot path, and never use a single shared
+  `Monitor` as the park/wake primitive.** StackExchange.Redis #3060's screenshots show
+  exactly this (`DedicatedThreadPoolPipeScheduler.Schedule` → `Monitor.Enter`) burning
+  **31–50% of global CPU** in lock contention on 2-core nodes. → lock-free Chase-Lev
+  enqueue + packed-CAS / LIFO-blocker-stack park; `Monitor.Contention` must be ~0.
+- **Don't route socket-IO completions onto the pool via `SynchronizationContext` on
+  Linux** — async completions hit the global .NET ThreadPool regardless (and
+  `SOCKETS_INLINE_COMPLETIONS=1` made "no measurable difference" per mgravell). True
+  co-location needs raw SAEA scheduling or a dedicated sync read thread — an *adapter*
+  concern, not the core primitive.
 
 ## Repo facts agents rely on
 
