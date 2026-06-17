@@ -198,6 +198,28 @@ baseline is recorded for the pre-rewrite pool.
       name `Should_only_use_one_thread_for_single_task_request` — a cosmetic carryover
       from the NUnit→xUnit migration. *(Done during C.4 work, phase2-c4-fix iter-01.)*
 
+- [x] **C4-1** Correct the mislabeled "isolated" idle-CPU figure and its wrong root cause.
+      *(Source: phase2-c4-fix after-action adversarial review, Finding #1.)* The C.4 fix
+      records ~14.2–14.5% as the **"isolated"** idle-CPU reading (memorizer `4cedbe2f` v3
+      section "v3 reading (isolated…)"; `91669fb` commit message), and blames the prior 17.4%
+      on "SpinWait-heavy siblings." **Both claims are inaccurate** (measured this review): the
+      genuinely-isolated reading is **~10.3%** (single test, no other tests in process); the
+      recorded ~14% is the **full-suite-with-collection-isolation** number; and running
+      `PoolMeasurementTests` **alone with zero siblings still reads 14–16%** (a 2-test in-process
+      filter reproduces 17.4%) — so the dominant ~4–7pp is **intra-process runtime churn**
+      (JIT/GC/MeterListener/runner threads), **not** sibling parallelism. The `<20%` gate still
+      passes deterministically on this box, so this is a record-honesty fix, not a broken gate.
+      **This does NOT reopen the C.4 gate** — the gate still passes; only the commit-narrative
+      claim and the memorizer `4cedbe2f` v3 wording need correction.
+      **Done when:**
+      - [x] Edit memorizer `4cedbe2f` v3 idle-CPU section: relabel the ~14% as
+            "full-suite (with `DisableParallelization`)" not "isolated"; record the
+            truly-isolated ~10.3%; attribute the ~14% floor to intra-process runtime overhead,
+            not to SpinWait siblings (keep the honest process-wide caveat).
+      - [x] No code change required; the `DisableParallelization` collection stays.
+      **✅ Resolved 2026-06-17:** memorizer `4cedbe2f` corrected to v5 (three-way decomposition: true-isolation ≈10.3%; ~14% = intra-process churn, not siblings). Commit `91669fb`'s message is historical, superseded by the corrected record.
+      **Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
+
 ---
 
 ## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`

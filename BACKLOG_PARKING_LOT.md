@@ -58,3 +58,23 @@
   postmortem's general coverage. All are additive and need maintainer sign-off before the
   skill files are edited.
 - **Date parked:** 2026-06-17
+
+### Idle-CPU assertion rests on a fragile process-wide gauge (measurement methodology)
+- **Source:** RALPH run phase2-c4-fix, after-action adversarial review (postmortem), Finding #2
+- **Issue:** `IdlePool_CpuUsage_IsNearZero` asserts `Environment.CpuUsage` (a **process-wide**
+  gauge) is `< 0.20` of one core over a 2 s window. The C.4 `DisableParallelization` fix makes
+  the gate pass deterministically on the dev box (i9-9900K/8c, 5/5 runs at ~14%), but the measured
+  value swings on intra-process load alone — truly-isolated single test = **10.3%**, the measuring
+  class alone (no siblings) = **14–16%**, a 2-test in-process filter reproduces the original
+  **17.4%**. The ~5pp margin is set by runner/JIT/GC churn the test cannot control, not by pool
+  behaviour, and there is no evidence it survives a smaller/loaded CI runner (2-core agent, same
+  process-wide gauge ÷ fewer cores). The contention half (`Monitor.LockContentionCount` delta) is
+  likewise process-wide and asserts nothing.
+- **Decision needed:** Methodology call. Options: (a) keep the cheap process-wide gauge + the
+  collection isolation already shipped (flaky-but-passing on this box; accept CI risk);
+  (b) measure the **subject specifically** — sum the pool's own worker-thread CPU via per-thread
+  `ProcessThread.TotalProcessorTime`, or calibrate the threshold against a same-process idle baseline
+  rather than a hardcoded `<20%`; (c) lengthen the window / widen tolerance. This interacts with the
+  **Phase 3 GATED idle-CPU gate** (`≈0` per `dae34f6d`), which will inherit this harness — so it
+  should be decided before that gate is wired. Phase 3 is GATED, so this does not block the loop.
+- **Date parked:** 2026-06-17
