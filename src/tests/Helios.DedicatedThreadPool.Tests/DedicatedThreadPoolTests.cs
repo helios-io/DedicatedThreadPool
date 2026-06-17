@@ -54,18 +54,26 @@ namespace Helios.Concurrency.Tests
         public void World_should_not_end_if_exception_thrown_in_user_callback()
         {
             var numThreads = 3;
+            var badExecutionCount = new AtomicCounter(0);
+            var goodExecutionCount = new AtomicCounter(0);
             var threadIds = new ConcurrentBag<int>();
+
             Action badCallback = () =>
             {
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
+                badExecutionCount.GetAndIncrement();
                 throw new Exception("DEATH TO THIS THREAD I SAY!");
             };
             Action goodCallback = () =>
             {
                 threadIds.Add(Thread.CurrentThread.ManagedThreadId);
+                goodExecutionCount.GetAndIncrement();
             };
 
-            using (var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, null, TimeSpan.FromSeconds(1))))
+            // Avoid using so we can call WaitForThreadsExit before asserting.
+            // Dispose() only signals CompleteAdding(); WaitForThreadsExit() joins the workers.
+            var threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads, null, TimeSpan.FromSeconds(1)));
+            try
             {
                 for (var i = 0; i < numThreads; i++)
                 {
@@ -73,19 +81,33 @@ namespace Helios.Concurrency.Tests
                     Thread.Sleep(20);
                 }
 
-                //sanity check
-                Assert.Equal(numThreads, threadIds.Distinct().Count());
+                // Wait for all bad callbacks to execute (not just to be queued).
+                SpinWait.SpinUntil(() => badExecutionCount.Current == numThreads, TimeSpan.FromSeconds(5));
 
-                //run the job again. Should get the same thread IDs as before
+                // Sanity: every bad callback executed despite throwing.
+                Assert.Equal(numThreads, badExecutionCount.Current);
+                // Thread count is within [1, numThreads] — a single warm worker on a constrained
+                // runner may handle multiple callbacks before others spin up, so == numThreads would
+                // be scheduling-dependent and racy on 2-core CI runners.
+                Assert.InRange(threadIds.Distinct().Count(), 1, numThreads);
+
+                // Survival check: pool must keep processing work after the exceptions threw.
                 for (var i = 0; i < numThreads * 10; i++)
                 {
                     threadPool.QueueUserWorkItem(goodCallback);
                     Thread.Sleep(20);
                 }
             }
+            finally
+            {
+                threadPool.Dispose();
+                // Join worker threads so all queued callbacks have returned before we assert.
+                threadPool.WaitForThreadsExit(TimeSpan.FromSeconds(10));
+            }
 
-            // half of thread IDs should belong to failed threads, other half to successful ones
-            Assert.Equal(numThreads, threadIds.Distinct().Count());
+            // Survival proof: every good callback ran after all the bad ones threw.
+            Assert.Equal(numThreads * 10, goodExecutionCount.Current);
+            Assert.InRange(threadIds.Distinct().Count(), 1, numThreads);
         }
     }
 }
