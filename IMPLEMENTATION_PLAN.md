@@ -17,6 +17,20 @@
 
 ---
 
+## Fix-it (PR #3 CI failure, ubuntu-latest) — NOW
+
+### Task C.5: De-flake `World_should_not_end_if_exception_thrown_in_user_callback` (racy distinct-thread-count) · `[LOOP-OK]`
+**Source:** PR #3 CI — **ubuntu-latest FAILED** (`Expected: 3 / Actual: 2`) while windows-latest passed and local (8-core) passes. Job 82007338923.
+**Issue:** `DedicatedThreadPoolTests.cs:77` and `:88` assert `Assert.Equal(numThreads /*3*/, threadIds.Distinct().Count())` — i.e. that **exactly 3 distinct worker threads** handled the queued callbacks. This is **scheduling/core-count dependent**: on the constrained ubuntu runner one warm worker grabbed two of the three callbacks before a third spun up, so only **2** distinct IDs were recorded. It passed elsewhere by luck — a migrated NUnit assumption never analyzed for raciness (the concurrency-citation gap made manifest).
+**Real intent:** "the world does not end if a user callback throws" — the pool keeps processing work after exceptions — **not** a specific distinct-thread count.
+**Done when:**
+- [ ] Replace BOTH exact-count assertions with intent-preserving, **core-count-independent** checks: track an execution counter and assert the pool **still ran the good callbacks after the bad ones threw** (survived), and assert distinct-thread count is within `[1, numThreads]`, not `== numThreads`. Do **NOT** merely delete/weaken to green — preserve the "survives exceptions, keeps working" guarantee.
+- [ ] Cite `analyze-racy-test` / `dotnet-concurrency-specialist` (per the concurrency-citation rule) with the question answered.
+- [ ] Full suite green deterministically (≥3× locally); reason about / demonstrate core-count independence so it passes on a 2-core runner.
+**Verification:** L1 (engineering: build + xUnit green; racy-test review).
+
+---
+
 ## Fix-it (Review after iter-03) — NOW
 
 ### Task C.3: Move `PoolMetrics` into the single shipped source file (locked-decision conflict)
