@@ -211,3 +211,4 @@ build/
 
 # BenchmarkDotNet output
 BenchmarkDotNet.Artifacts/
+.ralph/

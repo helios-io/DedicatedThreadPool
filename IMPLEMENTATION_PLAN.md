@@ -21,9 +21,9 @@ box was checked with only two of three dimensions delivered.
 builds. Do **not** attempt this before 2.4 — execute it *as part of* Task 2.4 (building that harness
 is the means by which this fix-it is satisfied).
 **Done when:**
-- [ ] While doing Task 2.4, capture a preliminary idle-CPU number for the **current** pool on this
+- [x] While doing Task 2.4, capture a preliminary idle-CPU number for the **current** pool on this
       box (≈0 expected when idle), read from raw harness output.
-- [ ] Append that idle-CPU figure to the **existing** baseline record memorizer `4cedbe2f` (edit the
+- [x] Append that idle-CPU figure to the **existing** baseline record memorizer `4cedbe2f` (edit the
       same record — do **not** create a competing baseline), so the 2.3 baseline finally covers all
       three listed dimensions (throughput, alloc, idle CPU).
 **Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
@@ -115,13 +115,17 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
       `[GATED]`; this preliminary run is for harness shakeout, clearly labelled as such.)*
       *(Done: ShortRun BDN job, i9-9900K/8c ubuntu24-dev, net10.0; Helios 14.1ms/0B vs .NET TP
       16.2ms/3.2MB per 100K items; memorizer record `4cedbe2f`.)*
-- [ ] **2.4** `[LOOP-OK]` Build the **measurement scaffolding** the Phase 3–4 gates depend on,
+- [x] **2.4** `[LOOP-OK]` Build the **measurement scaffolding** the Phase 3–4 gates depend on,
       validated against the CURRENT pool: an idle-CPU harness via `Environment.CpuUsage`
       (assert ≈0 when idle), a `Monitor.Contention`≈0 check, and EventCounters/Meters stubs
       (active-worker / park / wake counts). Local/preliminary numbers only — governed,
       bare-metal, and ARM64 runs are `[GATED]`. **Also append the preliminary idle-CPU number for
       the current pool to memorizer baseline `4cedbe2f` — this closes the idle-CPU dimension of
       Task 2.3 (see Fix-it C.2 at the top of this file).**
+      *(Done: `PoolMetrics.cs` stubs (Meter + 3 counters); `PoolMeasurementTests.cs` with idle-CPU
+      harness [4.4%/thread, 17.4% process-wide], Monitor.Contention=0 harness, and metrics smoke
+      test; all 7 tests green + 1 pre-existing skip on net10.0; idle-CPU appended to memorizer
+      `4cedbe2f` v2.)*
 
 **DoD:** xUnit suite green; BenchmarkDotNet runs locally and in CI (smoke); idle-CPU +
 contention harness compile and pass against the current pool; a preliminary, reproducible
