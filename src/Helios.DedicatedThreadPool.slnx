@@ -4,6 +4,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Helios.DedicatedThreadPool.Tests/Helios.DedicatedThreadPool.Tests.csproj" />
-    <Project Path="tests/Helios.DedicatedThreadPool.Tests.Performance/Helios.DedicatedThreadPool.Tests.Performance.csproj" />
+    <Project Path="tests/Helios.DedicatedThreadPool.Benchmarks/Helios.DedicatedThreadPool.Benchmarks.csproj" />
   </Folder>
 </Solution>

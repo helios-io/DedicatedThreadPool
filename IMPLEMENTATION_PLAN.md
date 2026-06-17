@@ -81,9 +81,11 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
 - [x] **2.1** Migrate the test project NUnit → **xUnit** (keep all existing assertions);
       target a runner that exercises the library compiled for `net10.0`.
       *(Done: xUnit v2 + VSTest + coverlet; 4 pass / 1 skip, 0 warnings on net10.0.)*
-- [ ] **2.2** `[LOOP-OK]` Replace the NBench perf project with a **BenchmarkDotNet** project
+- [x] **2.2** `[LOOP-OK]` Replace the NBench perf project with a **BenchmarkDotNet** project
       (`*.Benchmarks`). Port the existing throughput benchmark (Helios pool vs
       `System.Threading.ThreadPool`).
+      *(Done: BDN 0.14.0; ThroughputBenchmarks.cs with [MemoryDiagnoser]; CI smoke via --job dry;
+      4 pass / 1 skip, 0 warnings on net10.0.)*
 - [ ] **2.3** `[LOOP-OK]` Capture a **preliminary** baseline of the *current* pool
       (throughput, alloc, idle CPU) **on this box**, recorded to memorizer. *(The OFFICIAL
       baseline — cooled bare-metal, `governor=performance`, ≥3 reps per `dae34f6d` — is

@@ -17,8 +17,8 @@
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
-    <!-- Perf harness (NBench today; migrates to BenchmarkDotNet in Phase 2). -->
-    <PackageVersion Include="NBench" Version="2.0.1" />
+    <!-- Perf harness: BenchmarkDotNet (migrated from NBench in Phase 2). -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 
 </Project>
