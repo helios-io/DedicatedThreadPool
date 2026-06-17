@@ -37,3 +37,20 @@
   baseline) that runs in Task 2.3/2.4's full benchmark, never in CI dry runs;
   (c) defer entirely until the pool rewrite (Phase 3) wires up the real acceptance gates.
 - **Date parked:** 2026-06-17
+
+### Last work commit of a run gets no mid-loop review (review-stack structural gap)
+- **Source:** RALPH run phase2-loop, after-action postmortem; diagnostics finding #5 +
+  adversarial triage MR-1 (flagged independently by **both** review stages)
+- **Issue:** With the review interval at 1, every iteration gets a mid-loop review *except
+  the last one*: the loop ends after the final work commit, so it is never covered by a
+  mid-loop review — only the after-action postmortem reviews it. This run, `2ba8f60`
+  (iter-04 / C.3) was reviewed solely by the postmortem. No defect slipped through this
+  time, but a future final-commit defect structurally could.
+- **Decision needed:** Process call on how to guarantee final-commit coverage. Options
+  for a human to choose: (a) codify in `ralph-output-adversarial-review.md` that the
+  postmortem MUST deep-review the run's end commit (already done manually this run —
+  cheapest, no extra loop iteration); (b) have the loop run one final mid-loop review at
+  run end before exiting (`ralph-loop.md` Step 13); (c) accept the gap and rely on the
+  postmortem's general coverage. All are additive and need maintainer sign-off before the
+  skill files are edited.
+- **Date parked:** 2026-06-17

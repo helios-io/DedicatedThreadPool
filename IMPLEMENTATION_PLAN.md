@@ -9,6 +9,16 @@
 
 ---
 
+> **⚠ After-action (phase2-loop, 2026-06-17): run ended with an OPEN NOW item.**
+> The loop terminated after iter-04 (C.3, done) without executing **Task C.4** (racy
+> idle-CPU/contention harness). C.4 below is the **top-priority unresolved item** and the
+> **entry point for the next run** — pick it up first. Postmortem reproduced the flakiness
+> (idle-CPU 10.3% isolated → 15.9% under the full parallel suite; contention delta 0 → 7).
+> See `.ralph/runs/phase2-loop/postmortem.md`. C.3 is complete (verified). PARK items
+> (perf-gate; final-commit-review gap) await maintainer decision in `BACKLOG_PARKING_LOT.md`.
+
+---
+
 ## Fix-it (Review after iter-03) — NOW
 
 ### Task C.3: Move `PoolMetrics` into the single shipped source file (locked-decision conflict)
@@ -31,8 +41,14 @@ break sitting in tension with a locked decision.
 - [x] Build 0/0 and full xUnit suite green on `net10.0`.
 **Verification:** L1 (engineering: build + xUnit green; no UI/IO).
 
-### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit)
+### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit) · ⚠ OPEN — RUN EXIT ITEM
 **Source:** Review after iteration 3, finding #2 (Regression risk / racy test).
+**After-action escalation (phase2-loop, 2026-06-17):** the loop ended with this NOW item
+**unexecuted** — iter-04 honestly deferred it ("to iteration 05") but iteration 05 never
+ran, so the known-flaky test still ships. The postmortem independently re-reproduced the
+contamination: **idle-CPU 10.3% isolated → 15.9% under the full parallel suite** (a 5.6pp
+swing, only ~4pp below the `< 0.20` gate) and **contention delta 0 → 7**. This is the
+first task the next run must pick up.
 **Issue:** `IdlePool_CpuUsage_IsNearZero` samples **process-wide** `Environment.CpuUsage` over a 2 s
 window and asserts `cpuFraction < 0.20`, but xUnit runs test classes **in parallel by default** (no
 `DisableTestParallelization` / `xunit.runner.json` exists) and the sibling tests
@@ -175,6 +191,15 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
 **DoD:** xUnit suite green; BenchmarkDotNet runs locally and in CI (smoke); idle-CPU +
 contention harness compile and pass against the current pool; a preliminary, reproducible
 baseline is recorded for the pre-rewrite pool.
+
+### Cleanup (non-blocking — opportunistic during a future test touch)
+
+- [ ] **C2-1** Align the skipped `Fact`'s `DisplayName` to its method intent. In
+      `DedicatedThreadPoolTaskSchedulerTests.cs:28-30` the `DisplayName`
+      ("Shouldn't immediately try to schedule all threads") no longer matches the method
+      name `Should_only_use_one_thread_for_single_task_request` — a cosmetic carryover
+      from the NUnit→xUnit migration. *(Source: postmortem phase2-loop, triage J1-2.
+      Cosmetic only; do during the C.4 work or any future test touch.)*
 
 ---
 
