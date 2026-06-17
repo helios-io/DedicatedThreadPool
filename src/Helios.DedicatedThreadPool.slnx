@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/core/">
+    <Project Path="core/Helios.DedicatedThreadPool/Helios.DedicatedThreadPool.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Helios.DedicatedThreadPool.Tests/Helios.DedicatedThreadPool.Tests.csproj" />
+    <Project Path="tests/Helios.DedicatedThreadPool.Tests.Performance/Helios.DedicatedThreadPool.Tests.Performance.csproj" />
+  </Folder>
+</Solution>

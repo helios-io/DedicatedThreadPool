@@ -1,0 +1,43 @@
+name: Release
+
+# Tag-driven release: push a tag (e.g. `1.0.0`) to build, pack, and publish.
+on:
+  push:
+    tags: [ '*' ]
+
+jobs:
+  release:
+    name: Pack & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # for creating the GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Pack
+        shell: pwsh
+        run: ./build.ps1 Pack
+
+      - name: Push to NuGet.org
+        if: ${{ env.NUGET_KEY != '' }}
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_KEY }}
+        run: >
+          dotnet nuget push "bin/nuget/*.nupkg"
+          --api-key "$NUGET_KEY"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: bin/nuget/*.nupkg
