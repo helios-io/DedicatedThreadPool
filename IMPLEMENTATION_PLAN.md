@@ -7,6 +7,29 @@
 >
 > Last reviewed: 2026-06-17
 
+---
+
+## Fix-it (Review after iter-02) — NOW
+
+### Task C.2: Capture the missing idle-CPU dimension of the 2.3 preliminary baseline
+**Source:** Review after iteration 2, finding #1 (Checkbox Integrity).
+**Issue:** Task 2.3's done-when explicitly lists capturing **(throughput, alloc, idle CPU)** for
+the current pool's preliminary baseline. The iteration captured **throughput + alloc** (memorizer
+`4cedbe2f`) but **not idle CPU**, and the omission was never acknowledged in the iter-02 log — the
+box was checked with only two of three dimensions delivered.
+**Dependency:** idle-CPU measurement needs the `Environment.CpuUsage` harness that **Task 2.4**
+builds. Do **not** attempt this before 2.4 — execute it *as part of* Task 2.4 (building that harness
+is the means by which this fix-it is satisfied).
+**Done when:**
+- [ ] While doing Task 2.4, capture a preliminary idle-CPU number for the **current** pool on this
+      box (≈0 expected when idle), read from raw harness output.
+- [ ] Append that idle-CPU figure to the **existing** baseline record memorizer `4cedbe2f` (edit the
+      same record — do **not** create a competing baseline), so the 2.3 baseline finally covers all
+      three listed dimensions (throughput, alloc, idle CPU).
+**Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
+
+---
+
 ## Sequencing rationale
 
 Modernize the build **first** so the rewrite is testable/benchmarkable; **then**
@@ -96,7 +119,9 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
       validated against the CURRENT pool: an idle-CPU harness via `Environment.CpuUsage`
       (assert ≈0 when idle), a `Monitor.Contention`≈0 check, and EventCounters/Meters stubs
       (active-worker / park / wake counts). Local/preliminary numbers only — governed,
-      bare-metal, and ARM64 runs are `[GATED]`.
+      bare-metal, and ARM64 runs are `[GATED]`. **Also append the preliminary idle-CPU number for
+      the current pool to memorizer baseline `4cedbe2f` — this closes the idle-CPU dimension of
+      Task 2.3 (see Fix-it C.2 at the top of this file).**
 
 **DoD:** xUnit suite green; BenchmarkDotNet runs locally and in CI (smoke); idle-CPU +
 contention harness compile and pass against the current pool; a preliminary, reproducible
