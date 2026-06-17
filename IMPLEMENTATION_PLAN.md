@@ -23,12 +23,12 @@ wires `PoolMetrics.*` into `Helios.Concurrency.DedicatedThreadPool.cs`, source-s
 a missing-type compile error because `PoolMetrics.cs` is never shipped. This is a latent packaging
 break sitting in tension with a locked decision.
 **Done when:**
-- [ ] Move the `internal static class PoolMetrics` (Meter + 3 instruments) **into** the single shipped
+- [x] Move the `internal static class PoolMetrics` (Meter + 3 instruments) **into** the single shipped
       file `src/core/Helios.DedicatedThreadPool/Helios.Concurrency.DedicatedThreadPool.cs` (it is
       `internal`, consistent with the "internal types" source-ship model).
-- [ ] Delete `src/core/Helios.DedicatedThreadPool/PoolMetrics.cs`.
-- [ ] `PoolMetrics_PublishesExpectedInstruments` still passes (instrument names unchanged).
-- [ ] Build 0/0 and full xUnit suite green on `net10.0`.
+- [x] Delete `src/core/Helios.DedicatedThreadPool/PoolMetrics.cs`.
+- [x] `PoolMetrics_PublishesExpectedInstruments` still passes (instrument names unchanged).
+- [x] Build 0/0 and full xUnit suite green on `net10.0`.
 **Verification:** L1 (engineering: build + xUnit green; no UI/IO).
 
 ### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit)
