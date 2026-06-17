@@ -20,7 +20,7 @@ namespace Helios.Concurrency.Tests
         /// </summary>
         public int Current
         {
-            get { return _seed; }
+            get { return Volatile.Read(ref _seed); }
         }
 
         /// <summary>

@@ -68,6 +68,21 @@ Use these rather than reimplementing expertise inline. Selection rules live in
 - **Generic:** `Explore` (read-only fan-out search), `Plan`, `general-purpose`,
   `fork` (inherits context).
 
+## Recording baselines & measurements in memorizer (discipline)
+
+When recording a benchmark or measurement baseline to memorizer:
+
+- **Version, don't overwrite.** Edit the existing record (e.g. the baseline `4cedbe2f`) and add a
+  new versioned section; preserve the prior reading with a context label (e.g. "v2 — contaminated")
+  rather than deleting it. Discarding an inconvenient number to make a gate look clean is reward-hacking.
+- **Label honestly.** A full-suite number is "full-suite," not "isolated." For process-wide
+  measurements record the three-way decomposition (skill `de-flake-measurement-test`) and tag the
+  figure that is *genuinely* isolated.
+- **Keep the caveats.** Machine, load, governor, high-priority status, process-wide-vs-subject-specific,
+  ShortRun-vs-full — all belong in the record. Preliminary ≠ official: the official baseline is
+  `[GATED]` (cooled bare-metal, `governor=performance`, ≥3 reps per discipline `dae34f6d`).
+- **Link it.** Relate baselines to the spec they support (`BASELINE-FOR` → `2c734cfb`).
+
 ## Assumptions / gaps
 
 - NuGet publish API key and any signing secrets are **CI secrets**, not present

@@ -203,4 +203,12 @@ tools/
 build/
 .nuget/
 .dotnet/
-.idea
+.idea/
+.planning/
+.code-health/
+.claude/settings.local.json
+.claude/skills/ralph-*
+
+# BenchmarkDotNet output
+BenchmarkDotNet.Artifacts/
+.ralph/

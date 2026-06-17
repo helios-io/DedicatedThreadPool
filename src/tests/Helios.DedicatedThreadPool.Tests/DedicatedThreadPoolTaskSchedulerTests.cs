@@ -1,36 +1,33 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
+using Xunit;
 
 namespace Helios.Concurrency.Tests
 {
-    [TestFixture]
-    public class DedicatedThreadPoolTaskSchedulerTests
+    public class DedicatedThreadPoolTaskSchedulerTests : IDisposable
     {
         protected TaskScheduler Scheduler;
         protected TaskFactory Factory;
-        private DedicatedThreadPool Pool;
+        private readonly DedicatedThreadPool Pool;
 
-        [SetUp]
-        public void SetUp()
+        public DedicatedThreadPoolTaskSchedulerTests()
         {
             Pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
             Scheduler = new DedicatedThreadPoolTaskScheduler(Pool);
             Factory = new TaskFactory(Scheduler);
         }
 
-        [TearDown]
-        public void TearDown()
+        public void Dispose()
         {
             Pool.Dispose();
         }
 
-        [Test(Description = "Shouldn't immediately try to schedule all threads for task execution")]
-        [Ignore("Totally unpredictable on low powered machines")]
-        public void Should_only_use_one_thread_for_single_task_request()
+        [Fact(DisplayName = "Should only use one thread for a single task request",
+              Skip = "Totally unpredictable on low powered machines")]
+        public async Task Should_only_use_one_thread_for_single_task_request()
         {
             var allThreadIds = new ConcurrentBag<int>();
 
@@ -49,12 +46,12 @@ namespace Helios.Concurrency.Tests
                 allThreadIds.Add(Thread.CurrentThread.ManagedThreadId);
             });
 
-            task.Wait();
+            await task;
 
-            Assert.AreEqual(Pool.Settings.NumThreads, allThreadIds.Count);
+            Assert.Equal(Pool.Settings.NumThreads, allThreadIds.Count);
         }
 
-        [Test(Description = "Should be able to utilize the entire DedicatedThreadPool for queuing tasks")]
+        [Fact(DisplayName = "Should be able to utilize the entire DedicatedThreadPool for queuing tasks")]
         public void Should_use_all_threads_for_many_tasks()
         {
             var threadIds = new ConcurrentBag<int>();

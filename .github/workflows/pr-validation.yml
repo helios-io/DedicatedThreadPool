@@ -32,7 +32,16 @@ jobs:
 
       - name: Build & Test
         shell: pwsh
+        # Skip local-only, process-wide measurement smokes (idle-CPU / contention) — flaky on
+        # shared/constrained CI runners. They still run locally; the portable idle-CPU acceptance
+        # gate is Phase 3 [GATED] (per-thread measurement on real hardware).
+        env:
+          TEST_FILTER: "Category!=Measurement"
         run: ./build.ps1 Test
+
+      - name: Benchmark smoke
+        shell: pwsh
+        run: ./build.ps1 Benchmark -Smoke
 
       - name: Upload test results
         if: always()

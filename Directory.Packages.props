@@ -12,13 +12,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Test stack (NUnit today; migrates to xUnit in Phase 2). -->
+    <!-- Test stack: xUnit + VSTest adapter + coverlet. -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageVersion Include="NUnit" Version="3.14.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
-    <!-- Perf harness (NBench today; migrates to BenchmarkDotNet in Phase 2). -->
-    <PackageVersion Include="NBench" Version="2.0.1" />
+    <!-- Perf harness: BenchmarkDotNet (migrated from NBench in Phase 2). -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 
 </Project>
