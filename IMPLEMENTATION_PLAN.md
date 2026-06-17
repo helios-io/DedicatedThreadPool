@@ -9,6 +9,51 @@
 
 ---
 
+## Fix-it (Review after iter-03) — NOW
+
+### Task C.3: Move `PoolMetrics` into the single shipped source file (locked-decision conflict)
+**Source:** Review after iteration 3, finding #1 (Architecture / locked-decision compliance).
+**Issue:** PROJECT_CONTEXT.md (line 78, **locked decision**) requires the library to "source-ship as
+**one `.cs` file**" via a content-only package. The core `.csproj` packs **only**
+`Helios.Concurrency.DedicatedThreadPool.cs` (`<Content Include=... Pack="true">`). Task 2.4 added a
+**second** core file `PoolMetrics.cs` that is (a) **not** in the content pack and (b) explicitly the
+"Phase 3–4 wiring point" the pool will reference. Today the package still compiles for consumers
+(nothing in the shipped file references `PoolMetrics` yet — verified by grep), but the moment Phase 3
+wires `PoolMetrics.*` into `Helios.Concurrency.DedicatedThreadPool.cs`, source-ship consumers will get
+a missing-type compile error because `PoolMetrics.cs` is never shipped. This is a latent packaging
+break sitting in tension with a locked decision.
+**Done when:**
+- [ ] Move the `internal static class PoolMetrics` (Meter + 3 instruments) **into** the single shipped
+      file `src/core/Helios.DedicatedThreadPool/Helios.Concurrency.DedicatedThreadPool.cs` (it is
+      `internal`, consistent with the "internal types" source-ship model).
+- [ ] Delete `src/core/Helios.DedicatedThreadPool/PoolMetrics.cs`.
+- [ ] `PoolMetrics_PublishesExpectedInstruments` still passes (instrument names unchanged).
+- [ ] Build 0/0 and full xUnit suite green on `net10.0`.
+**Verification:** L1 (engineering: build + xUnit green; no UI/IO).
+
+### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit)
+**Source:** Review after iteration 3, finding #2 (Regression risk / racy test).
+**Issue:** `IdlePool_CpuUsage_IsNearZero` samples **process-wide** `Environment.CpuUsage` over a 2 s
+window and asserts `cpuFraction < 0.20`, but xUnit runs test classes **in parallel by default** (no
+`DisableTestParallelization` / `xunit.runner.json` exists) and the sibling tests
+(`DedicatedThreadPoolTests`, `DedicatedThreadPoolTaskSchedulerTests`) burn CPU via
+`SpinWait.SpinUntil`. Measured contamination this review: **isolated = 9.8%**, **full parallel suite =
+14.6%**, **iter-03 recorded = 17.4%** — the "idle" reading swings ~7.6pp on parallel load alone, with a
+margin as thin as 2.6pp below the 20% gate → nondeterministic CI failure. The same flaw hits the
+contention harness (`delta=0` isolated vs `delta=4` observed under the parallel scheduler tests, which
+use `lock`/`Monitor`); it doesn't fail only because it asserts nothing on the delta.
+**Done when:**
+- [ ] Make the measurement tests immune to cross-test contamination — e.g. put `PoolMeasurementTests`
+      in its own non-parallel collection (`[CollectionDefinition(DisableParallelization = true)]`) or
+      otherwise isolate the sample so concurrent test CPU/lock activity cannot inflate it.
+- [ ] Re-capture the (now isolated) idle-CPU + contention figures from raw harness output and **update**
+      the idle-CPU section of memorizer baseline `4cedbe2f` so it reflects the isolated measurement
+      (keep the honest "process-wide, includes runner noise" caveat).
+- [ ] Idle-CPU and contention tests pass deterministically (re-run the full suite ≥3× with no failure).
+**Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
+
+---
+
 ## Fix-it (Review after iter-02) — NOW
 
 ### Task C.2: Capture the missing idle-CPU dimension of the 2.3 preliminary baseline
