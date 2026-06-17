@@ -85,3 +85,42 @@
   **Phase 3 GATED idle-CPU gate** (`≈0` per `dae34f6d`), which will inherit this harness — so it
   should be decided before that gate is wired. Phase 3 is GATED, so this does not block the loop.
 - **Date parked:** 2026-06-17
+
+### 🔴 GATES PHASE 3 G8 — Pin / pre-warm .NET ThreadPool + re-run at a real BDN job before the Phase 3 acceptance benchmark
+- **Source:** RALPH run phase3-prep, after-action adversarial review (postmortem), triage #5 (§B/§F)
+  — see `.ralph/runs/phase3-prep/postmortem.md` (PARK-B)
+- **Issue:** The P3.0.1 landscape rig (memorizer `1eeb3867`) is labelled PRELIMINARY and is honest
+  about two methodology limits, but those limits make its headline numbers **unsafe to feed the gated
+  Phase 3 G8 acceptance decision** as-is:
+  - **Unconstrained TP at `WorkerCount=2`:** the `0.62` "Helios faster at 2w" ratio compares a 2-worker
+    Helios against an **unconstrained ~8-worker, cold-ramping .NET ThreadPool** (the .NET TP can't be
+    held to 2 threads without a global `SetMaxThreads`). Apples-to-oranges — must NOT be quoted as a
+    parity finding.
+  - **High error bars at ShortRun:** Error ≈ Mean for the .NET TP rows (e.g. Error 9.0ms on a 10.0ms
+    Mean), so the `1.05` / `0.62` ratios are statistically soft.
+- **Decision needed:** Before the **Phase 3 G8** parity/convergence gate consumes any of these numbers,
+  re-run the comparison with (a) a pinned / pre-warmed .NET ThreadPool (e.g. `SetMinThreads`/`SetMaxThreads`
+  + warm-up invocations so the TP isn't cold-ramping) so the WorkerCount config is a fair like-for-like
+  comparison, and (b) a **real BDN job** (not ShortRun) so the error bars tighten per discipline `dae34f6d`.
+  This is **NOT a NOW fix** — Phase 3 is `[GATED]` and human-gated, so the loop never reaches G8; but this
+  is the item that unblocks an honest G8 acceptance decision and should be done as part of standing up that
+  gate. **Prominence: this is the highest-priority park item — it gates the Phase 3 G8 acceptance benchmark.**
+- **Date parked:** 2026-06-17
+
+### iter-log has no `## Commits` section listing its hex hash (ralph-loop template gap)
+- **Source:** RALPH run phase3-prep, after-action — flagged by **both** review stages (diagnostics
+  finding G3/SP-2 + adversarial triage #4) — see `.ralph/runs/phase3-prep/postmortem.md` (PARK-A)
+- **Issue:** `iter-01.md` has no `## Commits` section listing its actual commit hash (`bb63a41`), which
+  violates the review skill's must-check (line 472: every iter log must list its hex commit hash). Because
+  the log relied on git correlation instead, the STAGE 1 `gather-context` step had to perform an
+  orphaned-commit hunt to map commits ↔ logs — and it surfaced the orphaned run-start commit `71a4122`
+  (the plan-seeding commit recorded in `run.md` as the start commit but covered by no iteration log). This
+  is a **2+-occurrence pattern**: both reviewers independently landed on the missing-commit-record gap in a
+  single run.
+- **Decision needed:** Process call (skill edit needs maintainer sign-off). The postmortem drafts a concrete
+  fix: add a `## Commits` section **gate** to the `ralph-loop.md` iteration template (every `iter-NN.md` must
+  list each commit's hex hash + one-line description) plus a `## Pre-run prep commits:` rule in `run.md` for
+  any commit made before `iter-01`, and a Step-13 loop-advance gate that refuses to advance until the
+  just-finished iter-log has a non-empty, git-resolvable `## Commits` section. All additive; needs sign-off
+  before the skill files are edited.
+- **Date parked:** 2026-06-17

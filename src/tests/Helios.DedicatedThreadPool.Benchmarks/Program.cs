@@ -1,5 +1,13 @@
-﻿using BenchmarkDotNet.Running;
+﻿using System;
+using System.Linq;
+using BenchmarkDotNet.Running;
 using Helios.Concurrency.Benchmarks;
 
-// Run all methods in ThroughputBenchmarks; forward args so callers can pass e.g. --job dry.
-BenchmarkRunner.Run<ThroughputBenchmarks>(args: args);
+// Discover all benchmark classes in this assembly.
+// Add --filter * by default so unfiltered runs and CI (--job dry) both cover all classes.
+var runArgs = args.Any(a => a.StartsWith("--filter", StringComparison.Ordinal))
+    ? args
+    : [.. args, "--filter", "*"];
+BenchmarkSwitcher
+    .FromAssembly(typeof(ThroughputBenchmarks).Assembly)
+    .Run(runArgs);

@@ -266,6 +266,45 @@ baseline is recorded for the pre-rewrite pool.
 
 ---
 
+## Phase 3.0 — Prep (loop-safe groundwork before the gated core)  ·  MODE=perf  ·  **NOW**
+
+Establishes the comparison rig and targets the gated Phase 3 core will be judged against —
+**without** building any new pool. (Loop-safe: benchmarks only EXISTING types.)
+
+### Task P3.0.1: BenchmarkDotNet comparison harness — current pool vs .NET ThreadPool vs DedicatedThreadPoolPipeScheduler · `[LOOP-OK]`
+**Source:** Phase 3 prep + StackExchange.Redis #3060 (memorizer `eb4916e3` §4): we must "beat the lock-y 7-year-old `DedicatedThreadPoolPipeScheduler` on 2 cores."
+**Scope guardrail (READ):** Benchmark only the **three schedulers that already exist today** — the current `Helios.Concurrency.DedicatedThreadPool` (`QueueUserWorkItem`), `System.Threading.ThreadPool` (`UnsafeQueueUserWorkItem`), and `Pipelines.Sockets.Unofficial.DedicatedThreadPoolPipeScheduler` (`Schedule`). **Do NOT design, stub, or implement the new lock-free pool — that is Phase 3, `[GATED]`.** This task only stands up the measurement rig + records where the *current* landscape sits.
+**Done when:**
+- [x] Add a BenchmarkDotNet benchmark to the existing `*.Benchmarks` project comparing the three schedulers on a small-work-item throughput workload, at the default thread count **and** a constrained (e.g. 2-thread) config. Add `Pipelines.Sockets.Unofficial` as a **benchmarks-only** PackageReference (CPM) — NOT a dependency of the shipped library.
+- [x] `[MemoryDiagnoser]`; smoke-runs under `build.ps1 Benchmark -Smoke` (CI `--job dry`) and runs fully on the dev box.
+- [x] Record the preliminary comparison numbers to memorizer (new record, linked to the spec) — clearly labelled preliminary per the baseline discipline in `TOOLING.md`; note this is the "landscape the rewritten pool must beat."
+**Verification:** L1 (perf: build + BDN runs; raw output read directly; recorded to memorizer).
+**✅ Resolved 2026-06-17 (phase3-prep iter-01):** `SchedulerComparisonBenchmarks.cs` added; `Pipelines.Sockets.Unofficial` v2.2.16 added as benchmarks-only CPM dep; `Program.cs` migrated to `BenchmarkSwitcher` for correct multi-class filtering. ShortRun (3 iter, 3 warmup): Helios 10.5ms ≈ parity with .NET TP (10.0ms, ratio 1.05) at 8w; Helios 7.0ms vs .NET TP 11.4ms (ratio 0.62) at 2w; PipeScheduler 3× slower than .NET TP in both configs with 47K–66K Monitor contentions per run vs 0 for Helios. Landscape recorded to memorizer `1eeb3867-a9af-4d45-b93b-c4a593fcec95` (BASELINE-FOR spec `2c734cfb`).
+
+### Cleanup (phase3-prep after-action — non-blocking, fold into next benchmark/record touch)
+
+*Source: phase3-prep after-action postmortem (`.ralph/runs/phase3-prep/postmortem.md`). No NOW
+fix-it was required (overall verdict PARTIAL, driven by process/auditability gaps, not code defects).*
+
+- [ ] **C6-1** `[LOOP-OK]` Bound the benchmark's `done.Wait()`. The per-invocation drain in
+      `SchedulerComparisonBenchmarks.cs` calls an **unbounded** `done.Wait()`; if a scheduler ever
+      drops a work item the harness hangs forever instead of failing loud in CI. Add a timeout +
+      throw on the next benchmark touch. Perf/test code only — loop-safe. *(postmortem.md)*
+      **Verification:** L1 (perf: build + BDN smoke green).
+- [ ] **C6-2** `[LOOP-OK]` Restore the `Directory.Packages.props` trailing newline. `bb63a41`
+      stripped the final `\n` (and added incidental blank-line churn). Cosmetic hygiene; trivially
+      loop-safe. *(postmortem.md)*
+      **Verification:** L1 (release: build green; no behavior change).
+- [ ] **C6-3** Correct the "100000 contentions" label in memorizer `1eeb3867`. The recorded .NET TP
+      contention figure equals *exactly* WorkItems (100,000) — almost certainly Interlocked/lock-release
+      events mislabeled as `Monitor` contention by the BDN Threading diagnoser. Conclusion unaffected
+      (PipeScheduler is the contention loser; Helios = 0); the label merely misleads. **Not `[LOOP-OK]`**
+      — requires a memorizer write to a record feeding the gated Phase 3 decision; best batched with the
+      PARK-B re-run that rewrites this record. *(postmortem.md)*
+      **Verification:** L1 (perf: corrected record read directly, recorded to memorizer).
+
+---
+
 ## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`
 
 Build the reusable core at **fixed** thread count first; prove parity before adapting.
