@@ -20,7 +20,7 @@ without a modern benchmark harness and a recorded baseline.
 ## Phase 0 — Agent OS bootstrap  ·  MODE=release  ·  **NOW**
 
 - [x] `PROJECT_CONTEXT.md`, `TOOLING.md`, `AGENTS.md`, `CLAUDE.md`, this plan.
-- [ ] Maintainer agrees the OS is correct (completes the bootstrap).
+- [x] Maintainer agrees the OS is correct — confirmed 2026-06-17 ("commit this and start Phase 1").
 
 ---
 
@@ -28,22 +28,27 @@ without a modern benchmark harness and a recorded baseline.
 
 Model: `akkadotnet/build-system-template`. Goal: green, reproducible, modern build.
 
-- [ ] **1.1** Add `global.json` pinning the .NET SDK (10.0.x, `rollForward: latestfeature`).
-- [ ] **1.2** Add root `Directory.Build.props` (copyright, SourceLink, deterministic
+> **Status (2026-06-17):** done on branch `modernize/phase-1-build-system`; local
+> `build.ps1 Build/Test/Pack` all green on `net10.0` (content-only package verified).
+> Deferred as unnecessary right now: **Incrementalist** (single-project repo) and a
+> `Docs` build target (no `docs/` site yet). CI to be validated by the PR run.
+
+- [x] **1.1** Add `global.json` pinning the .NET SDK (10.0.x, `rollForward: latestfeature`).
+- [x] **1.2** Add root `Directory.Build.props` (copyright, SourceLink, deterministic
       build, `LangVersion`, shared metadata) and migrate `src/common.props` into it.
-- [ ] **1.3** Add `Directory.Packages.props` (Central Package Management); move all
+- [x] **1.3** Add `Directory.Packages.props` (Central Package Management); move all
       `PackageReference` versions out of csproj files.
-- [ ] **1.4** Add `.config/dotnet-tools.json` (Incrementalist, docfx) + `NuGet.Config`;
+- [x] **1.4** Add `.config/dotnet-tools.json` (Incrementalist, docfx) + `NuGet.Config`;
       delete vendored `src/.nuget/` (`NuGet.exe`, targets).
-- [ ] **1.5** Convert `src/*.sln` → `.slnx` (modern solution format).
-- [ ] **1.6** Author `build.ps1` (pwsh) with targets: `Restore`, `Build`, `Test`,
+- [x] **1.5** Convert `src/*.sln` → `.slnx` (modern solution format).
+- [x] **1.6** Author `build.ps1` (pwsh) with targets: `Restore`, `Build`, `Test`,
       `Nbench`→`Benchmark`, `Pack`, `Docs` — replacing `build.fsx`/`.cmd`/`.sh`/FAKE.
       Read version from `RELEASE_NOTES.md` (keep that convention).
-- [ ] **1.7** Add `.github/workflows/pr-validation.yml` — build + test on `net10.0`,
+- [x] **1.7** Add `.github/workflows/pr-validation.yml` — build + test on `net10.0`,
       on **Linux + Windows**.
-- [ ] **1.8** Add `.github/workflows/release.yml` — tag-driven `pack` + `nuget push`
+- [x] **1.8** Add `.github/workflows/release.yml` — tag-driven `pack` + `nuget push`
       (API key from repo secret). Add `coverlet.runsettings`.
-- [ ] **1.9** Remove legacy: `build.fsx`, `build.cmd`, `build.sh`, `build-system/*.yaml`.
+- [x] **1.9** Remove legacy: `build.fsx`, `build.cmd`, `build.sh`, `build-system/*.yaml`.
 
 **DoD:** `dotnet build` + `dotnet test` green from a clean clone via `build.ps1` and via
 the new Actions workflow on Linux and Windows; `pack` produces a content-only package

@@ -1,9 +1,30 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\common.props" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <AssemblyTitle>Helios.DedicatedThreadPool</AssemblyTitle>
     <Description>An instanced, dedicated ThreadPool for eliminating "noisy neighbor" problems on the CLR ThreadPool</Description>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageId>Helios.DedicatedThreadPool</PackageId>
+    <PackageTags>threadpool;concurrency;dedicated;taskscheduler;hill-climbing;akka</PackageTags>
   </PropertyGroup>
+
+  <!--
+    Source-shipped, content-only package: consumers compile the .cs themselves
+    (types are internal by default), so we ship the source file and NOT the DLL.
+    The assembly is still built locally for tests via ProjectReference.
+  -->
+  <PropertyGroup>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <ContentTargetFolders>contentFiles</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Helios.Concurrency.DedicatedThreadPool.cs"
+             Pack="true"
+             PackagePath="contentFiles/cs/any/Helios.Concurrency.DedicatedThreadPool.cs"
+             BuildAction="Compile" />
+  </ItemGroup>
+
 </Project>

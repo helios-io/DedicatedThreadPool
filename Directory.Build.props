@@ -1,0 +1,34 @@
+<Project>
+
+  <!--
+    Shared build properties for all projects (auto-imported by MSBuild).
+    Replaces the legacy src/common.props. Volatile per-project metadata stays
+    in the individual .csproj files.
+  -->
+
+  <PropertyGroup>
+    <ProductName>Helios.DedicatedThreadPool</ProductName>
+    <Authors>Roger Alsing, Aaron Stannard, Jeff Cyr</Authors>
+    <Copyright>Copyright © 2015-2026 Roger Alsing, Aaron Stannard, Jeff Cyr</Copyright>
+    <VersionPrefix>0.3.0</VersionPrefix>
+    <PackageProjectUrl>https://github.com/helios-io/DedicatedThreadPool</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/helios-io/DedicatedThreadPool</RepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Deterministic>true</Deterministic>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Deterministic, source-linked builds on CI -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>
