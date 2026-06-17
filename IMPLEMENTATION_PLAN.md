@@ -275,10 +275,11 @@ Establishes the comparison rig and targets the gated Phase 3 core will be judged
 **Source:** Phase 3 prep + StackExchange.Redis #3060 (memorizer `eb4916e3` §4): we must "beat the lock-y 7-year-old `DedicatedThreadPoolPipeScheduler` on 2 cores."
 **Scope guardrail (READ):** Benchmark only the **three schedulers that already exist today** — the current `Helios.Concurrency.DedicatedThreadPool` (`QueueUserWorkItem`), `System.Threading.ThreadPool` (`UnsafeQueueUserWorkItem`), and `Pipelines.Sockets.Unofficial.DedicatedThreadPoolPipeScheduler` (`Schedule`). **Do NOT design, stub, or implement the new lock-free pool — that is Phase 3, `[GATED]`.** This task only stands up the measurement rig + records where the *current* landscape sits.
 **Done when:**
-- [ ] Add a BenchmarkDotNet benchmark to the existing `*.Benchmarks` project comparing the three schedulers on a small-work-item throughput workload, at the default thread count **and** a constrained (e.g. 2-thread) config. Add `Pipelines.Sockets.Unofficial` as a **benchmarks-only** PackageReference (CPM) — NOT a dependency of the shipped library.
-- [ ] `[MemoryDiagnoser]`; smoke-runs under `build.ps1 Benchmark -Smoke` (CI `--job dry`) and runs fully on the dev box.
-- [ ] Record the preliminary comparison numbers to memorizer (new record, linked to the spec) — clearly labelled preliminary per the baseline discipline in `TOOLING.md`; note this is the "landscape the rewritten pool must beat."
+- [x] Add a BenchmarkDotNet benchmark to the existing `*.Benchmarks` project comparing the three schedulers on a small-work-item throughput workload, at the default thread count **and** a constrained (e.g. 2-thread) config. Add `Pipelines.Sockets.Unofficial` as a **benchmarks-only** PackageReference (CPM) — NOT a dependency of the shipped library.
+- [x] `[MemoryDiagnoser]`; smoke-runs under `build.ps1 Benchmark -Smoke` (CI `--job dry`) and runs fully on the dev box.
+- [x] Record the preliminary comparison numbers to memorizer (new record, linked to the spec) — clearly labelled preliminary per the baseline discipline in `TOOLING.md`; note this is the "landscape the rewritten pool must beat."
 **Verification:** L1 (perf: build + BDN runs; raw output read directly; recorded to memorizer).
+**✅ Resolved 2026-06-17 (phase3-prep iter-01):** `SchedulerComparisonBenchmarks.cs` added; `Pipelines.Sockets.Unofficial` v2.2.16 added as benchmarks-only CPM dep; `Program.cs` migrated to `BenchmarkSwitcher` for correct multi-class filtering. ShortRun (3 iter, 3 warmup): Helios 10.5ms ≈ parity with .NET TP (10.0ms, ratio 1.05) at 8w; Helios 7.0ms vs .NET TP 11.4ms (ratio 0.62) at 2w; PipeScheduler 3× slower than .NET TP in both configs with 47K–66K Monitor contentions per run vs 0 for Helios. Landscape recorded to memorizer `1eeb3867-a9af-4d45-b93b-c4a593fcec95` (BASELINE-FOR spec `2c734cfb`).
 
 ---
 
