@@ -235,6 +235,35 @@ baseline is recorded for the pre-rewrite pool.
       **✅ Resolved 2026-06-17:** memorizer `4cedbe2f` corrected to v5 (three-way decomposition: true-isolation ≈10.3%; ~14% = intra-process churn, not siblings). Commit `91669fb`'s message is historical, superseded by the corrected record.
       **Verification:** L1 (perf: documented machine, raw output read directly, recorded to memorizer).
 
+- [ ] **C5-1** Tighten or document the near-tautological lower bound in the C.5 de-flake.
+      *(Source: phase2-c5-fix after-action adversarial review, CLEANUP #1.)* The de-flake replaced
+      the racy equality with `Assert.InRange(threadIds.Distinct().Count(), 1, numThreads)`
+      (`DedicatedThreadPoolTests.cs:92,110`). Because `Assert.Equal(numThreads, badExecutionCount.Current)`
+      (`:88`) and `Assert.Equal(numThreads * 10, goodExecutionCount.Current)` (`:109`) already prove
+      callbacks executed, `distinct >= 1` is automatically true — the lower bound `1` can never fail on
+      its own; only the upper bound (`<= numThreads`) carries real information. Harmless redundancy, not
+      a behavior risk.
+      **Done when:**
+      - [ ] Either drop the lower bound to a comment / assert the upper-bound invariant directly
+            (`Assert.True(threadIds.Distinct().Count() <= numThreads)`), or document why `1` is the
+            intended floor. Fold into the next touch of this file — not worth a loop iteration on its own.
+      **Verification:** L1 (engineering: build + xUnit green).
+
+- [ ] **C5-2** Correct the record framing of the `AtomicCounter.Current` `Volatile.Read` change.
+      *(Source: phase2-c5-fix after-action adversarial review, CLEANUP #2.)* The C.5 work changed
+      `AtomicCounter.Current` to `Volatile.Read(ref _seed)` (`AtomicCounter.cs:23`) and the iter-01
+      record frames it as load-bearing for the test's final asserts. It is functionally **redundant for
+      those final asserts**: writes go through `Interlocked.Increment` (full barrier) and the final
+      counts are read on the test thread *after* `WaitForThreadsExit` (a `Task.WaitAll` acquire barrier),
+      so correct values would be observed even without the change. The `Volatile.Read` is a legitimate
+      general-purpose hardening of the test utility (the in-loop `SpinUntil` polling read at `:85`
+      genuinely benefits on weakly-ordered hardware) — only the iter-01 framing slightly over-states it.
+      The change is benign and improving; this is a record-honesty nit, not a correctness problem.
+      **Done when:**
+      - [ ] If revisited, note in the resolution that `Volatile.Read` hardens the polling read; the
+            post-`WaitForThreadsExit` final reads were already correctly ordered. No code change required.
+      **Verification:** L1 (engineering: no shipped-source change; test-support file only).
+
 ---
 
 ## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`
