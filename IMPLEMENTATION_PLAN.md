@@ -86,10 +86,12 @@ identical in shape to today's; no FAKE/vendored-nuget remnants; `build.fsx`'s st
       `System.Threading.ThreadPool`).
       *(Done: BDN 0.14.0; ThroughputBenchmarks.cs with [MemoryDiagnoser]; CI smoke via --job dry;
       4 pass / 1 skip, 0 warnings on net10.0.)*
-- [ ] **2.3** `[LOOP-OK]` Capture a **preliminary** baseline of the *current* pool
+- [x] **2.3** `[LOOP-OK]` Capture a **preliminary** baseline of the *current* pool
       (throughput, alloc, idle CPU) **on this box**, recorded to memorizer. *(The OFFICIAL
       baseline — cooled bare-metal, `governor=performance`, ≥3 reps per `dae34f6d` — is
       `[GATED]`; this preliminary run is for harness shakeout, clearly labelled as such.)*
+      *(Done: ShortRun BDN job, i9-9900K/8c ubuntu24-dev, net10.0; Helios 14.1ms/0B vs .NET TP
+      16.2ms/3.2MB per 100K items; memorizer record `4cedbe2f`.)*
 - [ ] **2.4** `[LOOP-OK]` Build the **measurement scaffolding** the Phase 3–4 gates depend on,
       validated against the CURRENT pool: an idle-CPU harness via `Environment.CpuUsage`
       (assert ≈0 when idle), a `Monitor.Contention`≈0 check, and EventCounters/Meters stubs
