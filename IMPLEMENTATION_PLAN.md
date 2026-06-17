@@ -41,7 +41,7 @@ break sitting in tension with a locked decision.
 - [x] Build 0/0 and full xUnit suite green on `net10.0`.
 **Verification:** L1 (engineering: build + xUnit green; no UI/IO).
 
-### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit) · ⚠ OPEN — RUN EXIT ITEM
+### Task C.4: De-flake the idle-CPU / contention harness (process-wide measure under parallel xUnit) · ⚠ OPEN — RUN EXIT ITEM · `[LOOP-OK]`
 **Source:** Review after iteration 3, finding #2 (Regression risk / racy test).
 **After-action escalation (phase2-loop, 2026-06-17):** the loop ended with this NOW item
 **unexecuted** — iter-04 honestly deferred it ("to iteration 05") but iteration 05 never

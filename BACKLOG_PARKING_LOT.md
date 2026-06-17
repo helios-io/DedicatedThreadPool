@@ -39,6 +39,10 @@
 - **Date parked:** 2026-06-17
 
 ### Last work commit of a run gets no mid-loop review (review-stack structural gap)
+- **✅ RESOLVED 2026-06-17 (maintainer sign-off):** chose **option (a)** — codified that the
+  after-action postmortem MUST deep-review the run's final work commit (review areas A–K).
+  Applied additively to `.claude/skills/ralph-output-adversarial-review.md` (final-postmortem
+  step #4 + a Must-Check item). No extra loop iteration required.
 - **Source:** RALPH run phase2-loop, after-action postmortem; diagnostics finding #5 +
   adversarial triage MR-1 (flagged independently by **both** review stages)
 - **Issue:** With the review interval at 1, every iteration gets a mid-loop review *except
