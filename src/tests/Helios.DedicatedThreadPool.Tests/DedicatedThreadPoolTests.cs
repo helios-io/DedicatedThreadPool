@@ -109,5 +109,37 @@ namespace Helios.Concurrency.Tests
             Assert.Equal(numThreads * 10, goodExecutionCount.Current);
             Assert.InRange(threadIds.Distinct().Count(), 1, numThreads);
         }
+
+        [Fact(DisplayName = "No lost wakeups: every queued item runs exactly once under repeated park/wake cycling")]
+        public void No_lost_wakeups_under_repeated_park_wake_cycling()
+        {
+            // Guards the Phase 3a parking change (Sleep(0) -> calibrated SpinWait + park).
+            // Pool sized below core count so workers genuinely contend on the spin/park path,
+            // and submitted in WAVES (with gaps) so workers drain each wave, spin, and PARK
+            // before the next wave wakes them — the exact window where a lost wakeup would
+            // strand item(s) on a parked worker (=> the counter never reaches total => hang).
+            int numThreads = Math.Max(2, Environment.ProcessorCount / 2);
+            const int waves = 200;
+            const int itemsPerWave = 1_000;
+            const int total = waves * itemsPerWave;
+            var counter = new AtomicCounter(0);
+
+            using (var pool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(numThreads)))
+            {
+                for (var w = 0; w < waves; w++)
+                {
+                    for (var i = 0; i < itemsPerWave; i++)
+                        pool.QueueUserWorkItem(() => counter.GetAndIncrement());
+                    Thread.Sleep(1); // let workers drain the wave and park before the next one
+                }
+
+                // A lost wakeup leaves items stuck on parked workers -> never reaches total -> timeout.
+                var drained = SpinWait.SpinUntil(() => counter.Current == total, TimeSpan.FromSeconds(30));
+                Assert.True(drained,
+                    $"Lost wakeup suspected: only {counter.Current}/{total} items executed within 30s.");
+            }
+
+            Assert.Equal(total, counter.Current);
+        }
     }
 }

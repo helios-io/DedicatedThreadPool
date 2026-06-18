@@ -305,53 +305,56 @@ fix-it was required (overall verdict PARTIAL, driven by process/auditability gap
 
 ---
 
-## Phase 3 — Pool core rewrite (IoExecutor spec P1)  ·  MODE=engineering  ·  **NEXT** · `[GATED]`
+## Phase 3 — Pool core augmentation (re-sequenced 2026-06-18, **interactive / human-reviewed**)  ·  MODE=engineering/perf  ·  **NOW**
 
-Build the reusable core at **fixed** thread count first; prove parity before adapting.
+**Re-sequenced per the `1eeb3867` finding:** the *current* single-queue pool already ≈ matches/beats
+.NET TP on throughput, allocation, and contention — so the value is the **two capabilities it lacks**
+(the exact reasons Akka abandoned it: no hill-climbing, inefficient waiting), added to the **current
+design**. The higher-risk Chase-Lev work-stealing rewrite is **deferred to Phase 3c**. Built
+**interactively with `dotnet-concurrency-specialist` review — NOT via the autonomous loop.**
 
-- [ ] **3.1** Per-worker **lock-free Chase-Lev deque** (PPoPP'13 C11 formulation; **signed
-      `long` monotonic indices**; LIFO-pop owner / FIFO-steal thief) + lock-free **global**
-      queue. Memory ordering: `Interlocked.MemoryBarrier()` in **both** take & steal (the
-      seq-cst fence). Missed-steal → re-request a worker; GC reclaims grown buffers; batch-
-      drain per wake with the **Kestrel `IOQueue` lost-wakeup guard**.
-- [ ] **3.2** **Efficient parking (low idle CPU):** calibrated `SpinWait` (PAUSE, ~70 spins
-      x64 / ×4 ARM) checking local/global/steal, then park on a **managed LIFO blocker-stack**
-      (warmest wakes first). **Wake exactly one** per work unit; "no-spin hint"; 20s idle
-      timeout. **No `Thread.Sleep(0)` spin; no single shared `Monitor`.**
-- [ ] **3.3** **Affinity = locality hint** (per locked decision): bias a key's *initial
-      placement* to `hash(key) % workers`; the item stays steal-eligible. **No** rebalanced
-      pinning and **no** FIFO-lane layer in the core (ordering is an adapter concern).
-- [ ] **3.4** Bench/profile vs `System.Threading.ThreadPool`: CPU-bound microbench **≤5%**;
-      **idle-CPU gate** (`Environment.CpuUsage` ≈0 when idle); **`Monitor.Contention` ≈0**;
-      **2-core + cgroup-quota** small-message-storm scenario (beat `DedicatedThreadPoolPipe-
-      Scheduler`); lock-free-vs-spinlock-steal benchmark (open question).
+### Task 3a: Efficient parking — kill the idle-CPU burn  ·  **NOW**
+**Problem:** `UnfairSemaphore.Wait` (`…Helios.Concurrency.DedicatedThreadPool.cs:631`) spins via
+`Thread.Sleep(0)` (budget `spinLimitPerProcessor=50`, scaled — hundreds of yields) before parking on
+the kernel `Semaphore`. N idle workers in that hot Sleep(0) spin = the >16%/node idle-CPU burn
+(Akka #4983; our preliminary smoke ~14%). **Keep** the packed-CAS state, spinner-preference, padding,
+request counter (digest `eb4916e3` §2.1). **Kill** the Sleep(0) spin. **Replace** with calibrated
+hardware-`PAUSE` `Thread.SpinWait` (exp backoff, ~70-norm-spin budget x64 / ×4 ARM) then park.
+LIFO blocker-stack wake-order = a *latency* opt, deferred.
+**Done when:**
+- [ ] `Thread.Sleep(0)` spin replaced with calibrated `Thread.SpinWait` + tightened budget; packed-CAS
+      state / spinner-preference / padding / request-counter preserved; net10.0 builds; xUnit green.
+- [ ] **Dedicated idle-CPU harness** (resolves the parked process-wide-gauge methodology): a console
+      process hosting ONLY the pool, measuring `Environment.CpuUsage` while idle (process CPU ≈ pool
+      CPU — no runner contamination). Record before/after to memorizer.
+- [ ] Idle CPU drops materially toward ~0 for the parked pool (dedicated harness, A/B).
+- [ ] **No throughput regression** vs `1eeb3867` (the comparison benchmark stays green).
+**Verification:** L1/perf (build + xUnit; dedicated idle-CPU harness; benchmark no-regression; `dotnet-concurrency-specialist` review).
 
-**DoD:** compiles for `net10.0` from the single source file; xUnit green incl. **take-on-empty
-racing steal** and **fence-correctness stress tests run on ARM64** (plus exception isolation,
-ordering, dispose/drain; racy review via `analyze-racy-test`); microbench parity ≤5% + idle-CPU
-+ `Monitor.Contention`≈0 recorded; no dead-end from PROJECT_CONTEXT re-introduced.
+### Task 3b: Hill-climbing controller + starvation injector  ·  **NEXT**
+On the current design. Port `HillClimbing.cs` **per-instance** (digest §2.4 / spec §6.3) + the separate
+GateThread **starvation injector** (a blocked worker reports zero completions, so the throughput loop
+alone would *remove* threads when it should add). Add the **idle-park timeout** (workers retire on
+timeout when over-goal — the hook 3a deliberately left out). Cap by min/max **and cgroup quota**;
+parked ≠ blocked.
+**Done when:** convergence ≤~2s after a load step (step-response harness, **up 1→C and down C→1**,
+anti-oscillation stddev ≤~1); no throughput regression; configurable via settings.
+**Verification:** L1/perf (step-response harness; `dotnet-concurrency-specialist` review).
 
 ---
 
-## Phase 4 — Hill-climbing controller **+ starvation injector** (spec P2)  ·  MODE=engineering/perf  ·  **NEXT** · `[GATED]`
+## Phase 3c — Chase-Lev work-stealing + affinity (DEFERRED)  ·  MODE=engineering  ·  **LATER** · `[GATED]`
 
-Two cooperating control loops — the throughput controller alone **cannot** react to blocking
-(a blocked worker reports zero completions, so it would *remove* threads when it should add).
-
-- [ ] **4.1** Port the runtime `HillClimbing.cs` algorithm **per-instance** (square-wave probe
-      + Goertzel transfer-function gradient + confidence/SNR + `pow(move,2)` gain; randomized
-      10–200ms sample interval). Params per the digest (`eb4916e3`) / spec §6.3.
-- [ ] **4.2** **Separate starvation/blocking injector** (GateThread, ~500ms; owns cold-start
-      ramp): inject on queue-non-drainage + blocked-thread count, CPU-aware. Expose
-      `NotifyBlocked/Unblocked` hooks (**defer** the full cooperative-blocking ramp). Cap by
-      `min`/`max` **and cgroup CPU quota**. Parked ≠ blocked; stamp `lastDequeue` on steals.
-- [ ] **4.3** Validate **convergence ≤~2s** after a load step (step-response harness, **up
-      1→C and down C→1**, anti-oscillation stddev ≤~1) and **microbench parity** ≤5% of .NET
-      TP (acceptance gate **G8**).
-
-**DoD:** convergence (up + down) + parity + anti-oscillation demonstrated and recorded;
-configurable via settings; cgroup-quota-aware; no busy-spin waste and no park/wake regression
-vs Phase 3.
+The higher-risk lock-free rewrite (was 3.1 + 3.3). **Deferred** per `1eeb3867`: no throughput gain
+justifies its risk now (current pool already ≈ .NET TP); its real value is the **IoExecutor I/O
+co-location** (Akka transport) — a later concern. Stays `[GATED]` (silent-failure, ARM64-sensitive):
+per-worker **lock-free Chase-Lev deque** (PPoPP'13 C11; signed `long` indices; LIFO-pop/FIFO-steal;
+`Interlocked.MemoryBarrier()` seq-cst fence in **both** take & steal; GC-reclaimed buffers; Kestrel
+`IOQueue` lost-wakeup guard) + lock-free global queue; **affinity = locality hint** (bias initial
+placement, steal-tolerant; ordering is an adapter concern). Cross-cutting traps + acceptance gates
+(≤5% parity, fence-correctness on **ARM64**, take-on-empty-vs-steal, `Monitor.Contention`≈0, 2-core +
+cgroup scenario) per `PROJECT_CONTEXT.md` + digest `eb4916e3`. **Unlocked only by human review on real
+hardware.**
 
 ---
 
