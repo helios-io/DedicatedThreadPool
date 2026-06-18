@@ -592,8 +592,23 @@ namespace Helios.Concurrency
                 //
                 // Now we're a spinner.
                 //
-                int numSpins = 0;
-                const int spinLimitPerProcessor = 50;
+                // Replaces the legacy Thread.Sleep(0) busy-yield with a calibrated, cost-normalized
+                // Thread.SpinWait backoff that parks the worker after a small, bounded budget of
+                // hardware-PAUSE yields (~the kernel wake-latency break-even, single-digit microseconds)
+                // instead of burning ~hundreds of timeslice-yields. Sleep(0) kept idle/bursty CPU high
+                // (a parked-then-rewoken worker re-spun the full budget on every wake/idle cycle); PAUSE
+                // plus a tight total budget lets the worker reach the kernel park fast and stay there.
+                // Thread.SpinWait is self-normalized to wall-clock across x64/ARM64 (CoreCLR
+                // YieldProcessorNormalized, ~37ns/normalized-yield), so the budget is architecture-
+                // portable with NO manual x4 ARM multiplier. The packed-CAS state machine, the
+                // spinner-preference Release, and "re-check count each iteration before parking" are
+                // all unchanged (reviewed by dotnet-concurrency-specialist).
+                //
+                // ~256 normalized yields ~= 9.5us, right at the kernel wake break-even (~2-10us).
+                const int spinYieldBudget = 256;
+                const int maxYieldsPerIteration = 64; // clamp one SpinWait so we re-poll count often
+                int spunYields = 0;
+                int nextYields = 1;
                 while (true)
                 {
                     SemaphoreState currentCounts = GetCurrentState();
@@ -606,31 +621,20 @@ namespace Helios.Concurrency
                         if (TryUpdateState(newCounts, currentCounts))
                             return true;
                     }
+                    else if (spunYields >= spinYieldBudget)
+                    {
+                        // Budget exhausted, still no work: become a waiter and park on the kernel semaphore.
+                        --newCounts.Spinners;
+                        ++newCounts.Waiters;
+                        if (TryUpdateState(newCounts, currentCounts))
+                            break;
+                    }
                     else
                     {
-                        double spinnersPerProcessor = (double)currentCounts.Spinners / ProcessorCount;
-                        int spinLimit = (int)((spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
-                        if (numSpins >= spinLimit)
-                        {
-                            --newCounts.Spinners;
-                            ++newCounts.Waiters;
-                            if (TryUpdateState(newCounts, currentCounts))
-                                break;
-                        }
-                        else
-                        {
-                            //
-                            // We yield to other threads using Thread.Sleep(0) rather than the more traditional Thread.Yield().
-                            // This is because Thread.Yield() does not yield to threads currently scheduled to run on other
-                            // processors.  On a 4-core machine, for example, this means that Thread.Yield() is only ~25% likely
-                            // to yield to the correct thread in some scenarios.
-                            // Thread.Sleep(0) has the disadvantage of not yielding to lower-priority threads.  However, this is ok because
-                            // once we've called this a few times we'll become a "waiter" and wait on the Semaphore, and that will
-                            // yield to anything that is runnable.
-                            //
-                            Thread.Sleep(0);
-                            numSpins++;
-                        }
+                        // Cost-normalized hardware-PAUSE backoff (NOT Thread.Sleep(0)).
+                        Thread.SpinWait(nextYields);
+                        spunYields += nextYields;
+                        nextYields = Math.Min(nextYields << 1, maxYieldsPerIteration);
                     }
                 }
 

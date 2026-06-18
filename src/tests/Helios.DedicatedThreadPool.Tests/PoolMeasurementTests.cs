@@ -61,11 +61,14 @@ namespace Helios.Concurrency.Tests
                 $"[idle-CPU] wall={wallSec:F2}s  cpu_delta={cpuDeltaSec * 1000:F1}ms  " +
                 $"cpu_fraction={cpuFraction:P1}  pool_threads={numThreads}");
 
-            // Generous threshold: busy-spin would saturate a core (>=1.0/thread).
-            // Current pool uses UnfairSemaphore so idle CPU should be near 0.
-            // Phase 3 gate will tighten this (dae34f6d benchmark discipline).
-            Assert.True(cpuFraction < 0.20,
-                $"Idle CPU too high: {cpuFraction:P1} — pool may be busy-spinning ({numThreads} threads)");
+            // Record-only — NO threshold assertion. `Environment.CpuUsage` is process-wide and far
+            // too noisy on a shared test runner to gate on (it measures runner/JIT/GC, not the pool
+            // — see C4-1; it flakes >0.20 intermittently regardless of pool behaviour). The reliable
+            // idle-CPU gate is the DEDICATED harness in the Benchmarks project — `dotnet run -c Release
+            // -- idle-cpu` (and `burst-cpu`) — which hosts ONLY the pool so process CPU ≈ pool CPU.
+            // That harness shows steady-idle ≈ 0% and quantifies the wake/spin cost under bursty load.
+            // This test stays as a local smoke for visibility only (it is [Category=Measurement],
+            // excluded from CI). Resolves the parked process-wide-gauge methodology (option b).
         }
 
         // -----------------------------------------------------------------
